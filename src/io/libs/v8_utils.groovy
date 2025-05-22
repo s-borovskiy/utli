@@ -71,12 +71,12 @@ def hello_world(){
 }
 
 def sync_hran(rep_1c, rep_git_local, rep_git_remote, ext = "", aditional_parameters, server1c){
-    start_sync = "gitsync sync --storage-user \"gitbot\" --storage-pwd \"${pass}\" ${ext} ${aditional_parameters} \"${rep_1c}\" \"${rep_git_local}\"";
+    start_sync = "gitsync sync --storage-user \"${login_hran}\" --storage-pwd \"${pass_hran}\" ${ext} ${aditional_parameters} \"${rep_1c}\" \"${rep_git_local}\"";
     return cmd(start_sync);
 }
 
 def init_hran(rep_1c, rep_git_local, ext = "", server1c){
-    init_sync = "gitsync init --storage-user \"gitbot\" --storage-pwd \"${pass}\" ${ext} \"${rep_1c}\" \"${rep_git_local}\"";
+    init_sync = "gitsync init --storage-user \"${login_hran}\" --storage-pwd \"${pass_hran}\" ${ext} \"${rep_1c}\" \"${rep_git_local}\"";
     return cmd(init_sync);
 }
 
