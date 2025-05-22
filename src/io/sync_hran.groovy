@@ -20,16 +20,16 @@ pipeline {
 
                 
                 withCredentials([usernamePassword(credentialsId: 'token1',
-                usernameVariable: 'login_hran',
-                passwordVariable: 'pass_hran')]){
+                usernameVariable: 'username',
+                passwordVariable: 'password')]){
                 returnCode = utils.cmd("cd /D \"${rep_git_local}\" & git pull https://$username:$password@$rep_git_remote storage_1c");
                 }
                 if (returnCode != 0) {
                         error 'Ошибка' 
                     }              
                  withCredentials([usernamePassword(credentialsId: '0589d420-2253-48ad-af53-7b8875f4c99c',
-                usernameVariable: 'username',
-                passwordVariable: 'password')]){     
+                usernameVariable: 'login_hran',
+                passwordVariable: 'pass_hran')]){     
                 returnCode = utils.init_hran(rep_1c, rep_git_local+"\\src\\cf",,"");
                 if (returnCode != 0) {
                         error 'Ошибка' 
