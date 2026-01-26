@@ -86,7 +86,7 @@ def telegram_send_message(TOKEN,CHAT_ID, messageText,success){
     def icons = ["🛀","🚧", "😸", "🚀", "⌛", "🐟", "💪", "📀", "📷", "🐄", "🐈"] 
  
     def randomIndex = (new Random()).nextInt(icons.size())
-    def randomIndex_message = (new Random()).nextInt(message_failure.size())
+   // def randomIndex_message = (new Random()).nextInt(message_failure.size())
     
     messageText = escapeStringForMarkdownV2(messageText)
 
