@@ -92,10 +92,10 @@ def telegram_send_message(TOKEN,CHAT_ID, messageText,success){
 
     if (success == true) {
                         messageText = escapeStringForMarkdownV2(messageText)
-    messageText = "✅✅✅ ${messageText} Ссылка на сборку: ${env.BUILD_URL}" 
+    messageText = "✅✅✅ ${messageText} URL: ${env.BUILD_URL}" 
                     }else{ 
     
-    messageText = "❌❌❌ ${messageText} Ссылка на сборку: ${env.BUILD_URL}"
+    messageText = "❌❌❌ ${messageText} URL: ${env.BUILD_URL}"
     }
 
     sh """                  curl -s -X POST https://api.telegram.org/bot${TOKEN}/sendMessage \
