@@ -41,6 +41,19 @@ class PipelineContext implements Serializable {
         return steps.isUnix()
     }
 
+    String escapeArg(String value) {
+        def safe = value == null ? "" : value.toString()
+        if (isUnix()) {
+            return "'" + safe.replace("'", "'\"'\"'") + "'"
+        }
+        return "\"" + safe.replace("\"", "\\\"") + "\""
+    }
+
+    String urlEncode(String value) {
+        def safe = value == null ? "" : value.toString()
+        return java.net.URLEncoder.encode(safe, "UTF-8")
+    }
+
     String workspaceLine(String workspace = "") {
         return workspace?.isEmpty() ? "" : "cd ${workspace} &"
     }

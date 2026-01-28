@@ -50,4 +50,12 @@ class v8_utils implements Serializable {
     def telegram_send_message(TOKEN, CHAT_ID, messageText, success) {
         telegram.sendMessage(TOKEN, CHAT_ID, messageText, success)
     }
+
+    def escapeArg(value) {
+        return ctx.escapeArg(value)
+    }
+
+    def urlEncode(value) {
+        return ctx.urlEncode(value)
+    }
 }

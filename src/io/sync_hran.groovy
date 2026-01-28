@@ -19,7 +19,7 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: 'token1',
                 usernameVariable: 'username',
                 passwordVariable: 'password')]){
-                returnCode = utils.shell.runOrError("cd /D \"${rep_git_local}\" & git pull https://$username:$password@$rep_git_remote storage_1c", 'Ошибка')
+                returnCode = utils.shell.runOrError("cd /D \"${rep_git_local}\" & git pull https://${utils.urlEncode(username)}:${utils.urlEncode(password)}@$rep_git_remote storage_1c", 'Ошибка')
                 }              
                  withCredentials([usernamePassword(credentialsId: '0589d420-2253-48ad-af53-7b8875f4c99c',
                 usernameVariable: 'login_hran',
@@ -54,7 +54,7 @@ pipeline {
                     withCredentials([usernamePassword(credentialsId: "token1",
                         usernameVariable: 'username',
                         passwordVariable: 'password')]){
-                        returnCode = utils.shell.runOrError("cd /D \"${rep_git_local}\"  & git push https://$username:$password@$rep_git_remote", 'Ошибка')
+                        returnCode = utils.shell.runOrError("cd /D \"${rep_git_local}\"  & git push https://${utils.urlEncode(username)}:${utils.urlEncode(password)}@$rep_git_remote", 'Ошибка')
                     }
                 }    
             }  
