@@ -69,7 +69,8 @@ utils = new v8_utils()
             stage('Обновляем базу') {
                     steps {
                         script {
-                    utils.updatedb(uccode)
+                            withCredentials([usernamePassword(credentialsId: 'Logopass', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                    utils.updatedb(uccode)}
                         }
                     }
             }
