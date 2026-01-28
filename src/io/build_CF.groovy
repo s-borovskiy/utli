@@ -1,8 +1,8 @@
 @Library('1c-utils')
 
-import io.libs.v8_utils
+import io.libs.V8Utils
 
-def utils = new v8_utils(this)
+def utils = new V8Utils(this)
 
 
 String jobName = System.getenv('JOB_NAME')

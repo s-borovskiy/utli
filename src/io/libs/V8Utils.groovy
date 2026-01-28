@@ -1,13 +1,13 @@
-﻿package io.libs
+package io.libs
 
-class v8_utils implements Serializable {
+class V8Utils implements Serializable {
     PipelineContext ctx
     CommandRunner shell
     VRunnerService vrunner
     HranService hran
     TelegramService telegram
 
-    v8_utils(steps) {
+    V8Utils(steps) {
         this.ctx = new PipelineContext(steps)
         this.shell = new CommandRunner(ctx)
         this.vrunner = new VRunnerService(ctx)
