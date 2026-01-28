@@ -42,7 +42,7 @@ def buildCF(dir = '', uccode = ''){
 
     def log_file = "${env.WORKSPACE}\\log.txt"
 
-    returnCode = cmd("vrunner compile --src \"${dir}\\src\\cf\" -c --ibconnection /S${server1c}/${database} --db-user \"Admin\" --db-pwd \"123\" --v8version \"8.3.25.1445\" --uccode \"${uccode}\" ")
+    returnCode = cmd("vrunner compile --src \"${dir}\\src\\cf\" -c --ibconnection /S${server1c}/${database} --db-user \"${USERNAME}\" --db-pwd \"${PASSWORD}\" --v8version \"8.3.25.1445\" --uccode \"${uccode}\" ")
     if(returnCode > 0){
         error 'Исходники не собрались:\n' + loadErrorMessage()
     }
@@ -54,7 +54,7 @@ def buildCF(dir = '', uccode = ''){
 
 def updatedb(uccode = ''){
             
-    returnCode = cmd("vrunner updatedb --v1 --ibconnection /S${server1c}/${database} --db-user \"Admin\" --db-pwd \"123\" --v8version \"8.3.25.1445\" --uccode \"${uccode}\" ")
+    returnCode = cmd("vrunner updatedb --v1 --ibconnection /S${server1c}/${database} --db-user \"${USERNAME}\" --db-pwd \"${PASSWORD}\" --v8version \"8.3.25.1445\" --uccode \"${uccode}\" ")
 
 
     if (returnCode != 0) {
