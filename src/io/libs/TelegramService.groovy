@@ -1,4 +1,4 @@
-package io.libs
+﻿package io.libs
 
 import java.util.Random
 
@@ -10,15 +10,15 @@ class TelegramService implements Serializable {
     }
 
     void sendMessage(String token, String chatId, String messageText, boolean success) {
-        def icons = ["рџ›Ђ", "рџљ§", "рџё", "рџљЂ", "вЊ›", "рџђџ", "рџ’Є", "рџ“Ђ", "рџ“·", "рџђ„", "рџђ€"]
+        def icons = ["🛂", "🚧", "😸", "🚀", "⌛", "🐙", "💪", "📀", "📷", "🐄", "🐀"]
         def randomIndex = (new Random()).nextInt(icons.size())
 
         messageText = escapeStringForMarkdownV2(messageText)
         if (success == true) {
             messageText = escapeStringForMarkdownV2(messageText)
-            messageText = "вњ…вњ…вњ… ${messageText} URL: ${ctx.env("BUILD_URL")}"
+            messageText = "✅✅✅ ${messageText} URL: ${ctx.env("BUILD_URL")}"
         } else {
-            messageText = "вќЊвќЊвќЊ ${messageText} URL: ${ctx.env("BUILD_URL")}"
+            messageText = "❌❌❌ ${messageText} URL: ${ctx.env("BUILD_URL")}"
         }
 
         ctx.steps.sh("""                  curl -s -X POST https://api.telegram.org/bot${token}/sendMessage \

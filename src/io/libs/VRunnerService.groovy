@@ -1,4 +1,4 @@
-package io.libs
+﻿package io.libs
 
 class VRunnerService implements Serializable {
     PipelineContext ctx
@@ -15,7 +15,7 @@ class VRunnerService implements Serializable {
         def command = "vrunner compile --src \"${workspace}\\src\\cf\" -c --ibconnection /S${ctx.env("server1c")}/${ctx.env("database")} --db-user ${ctx.escapeArg(ctx.env("USERNAME"))} --db-pwd ${ctx.escapeArg(ctx.env("PASSWORD"))} --v8version \"${ctx.env("v8version")}\" --uccode \"${codeValue}\" "
         def code = runner.run(command)
         if (code > 0) {
-            ctx.error('РСЃС…РѕРґРЅРёРєРё РЅРµ СЃРѕР±СЂР°Р»РёСЃСЊ:\n' + loadErrorMessage())
+            ctx.error('Исходники не собрались:\n' + loadErrorMessage())
         }
         return code
     }
@@ -32,7 +32,7 @@ class VRunnerService implements Serializable {
         def command = "vrunner updatedb --v1 --ibconnection /S${ctx.env("server1c")}/${ctx.env("database")} --db-user ${ctx.escapeArg(ctx.env("USERNAME"))} --db-pwd ${ctx.escapeArg(ctx.env("PASSWORD"))} --v8version \"${ctx.env("v8version")}\" --uccode \"${codeValue}\" "
         def code = runner.run(command)
         if (code != 0) {
-            ctx.error('РћС€РёР±РєР° РїСЂРё СѓРґР°Р»РµРЅРёРё Р±Р°Р·С‹:')
+            ctx.error('Ошибка при удалении базы:')
         }
         return code
     }

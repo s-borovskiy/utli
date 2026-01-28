@@ -1,4 +1,4 @@
-package io.libs
+﻿package io.libs
 
 class PipelineContext implements Serializable {
     def steps
@@ -64,9 +64,9 @@ class PipelineContext implements Serializable {
             prepared = "${workspaceLine(workDir)} ${command}"
         }
         if (isUnix()) {
-            return steps.sh(script: "${prepared}", returnStatus: true)
+            return steps.sh(script: "set +x\n${prepared}", returnStatus: true)
         }
-        return steps.bat(script: "chcp 65001\n ${prepared}", returnStatus: true)
+        return steps.bat(script: "@echo off\r\nchcp 65001>nul\r\n${prepared}", returnStatus: true)
     }
 
     boolean fileExists(String path) {
