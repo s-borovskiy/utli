@@ -47,7 +47,8 @@ utils = new v8_utils()
         stage('Собираем конфигурацию из исходников') {
                     steps {
                         script {
-                            utils.buildCF('', uccode)
+                            withCredentials([usernamePassword(credentialsId: 'Logopass', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                            utils.buildCF('', uccode)}
                         }
                     }
         }
