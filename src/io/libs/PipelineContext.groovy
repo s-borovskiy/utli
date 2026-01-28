@@ -10,8 +10,21 @@ class PipelineContext implements Serializable {
     String env(String name, String defaultValue = "") {
         def value = null
         try {
-            value = steps?.env?.get(name)
+            if (steps?.env != null) {
+                value = steps.env[name]
+                if (value == null && name != null) {
+                    value = steps.env."${name}"
+                }
+            }
         } catch (ignored) {
+        }
+        if (value == null || value.toString().isEmpty()) {
+            try {
+                if (steps?.params != null && name != null) {
+                    value = steps.params[name]
+                }
+            } catch (ignored) {
+            }
         }
         if (value == null || value.toString().isEmpty()) {
             try {
