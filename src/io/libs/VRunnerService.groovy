@@ -9,9 +9,10 @@ class VRunnerService implements Serializable {
         this.runner = new CommandRunner(ctx)
     }
 
-    int buildCF(String dir = "", String uccode = "") {
+    int buildCF(String dir = "", Object uccode = "") {
         def workspace = dir?.isEmpty() ? ctx.env("WORKSPACE") : dir
-        def command = "vrunner compile --src \"${workspace}\\src\\cf\" -c --ibconnection /S${ctx.env("server1c")}/${ctx.env("database")} --db-user \"${ctx.env("USERNAME")}\" --db-pwd \"${ctx.env("PASSWORD")}\" --v8version \"${ctx.env("v8version")}\" --uccode \"${uccode}\" "
+        def codeValue = uccode == null ? "" : uccode.toString()
+        def command = "vrunner compile --src \"${workspace}\\src\\cf\" -c --ibconnection /S${ctx.env("server1c")}/${ctx.env("database")} --db-user \"${ctx.env("USERNAME")}\" --db-pwd \"${ctx.env("PASSWORD")}\" --v8version \"${ctx.env("v8version")}\" --uccode \"${codeValue}\" "
         def code = runner.run(command)
         if (code > 0) {
             ctx.error('РСЃС…РѕРґРЅРёРєРё РЅРµ СЃРѕР±СЂР°Р»РёСЃСЊ:\n' + loadErrorMessage())
@@ -19,14 +20,16 @@ class VRunnerService implements Serializable {
         return code
     }
 
-    int buildCFE(String dir = "", String uccode = "") {
+    int buildCFE(String dir = "", Object uccode = "") {
         def workspace = dir?.isEmpty() ? ctx.env("WORKSPACE") : dir
-        def command = "vrunner compileext \"${workspace}\\src\\cfe\" --ibconnection /S${ctx.env("server1c")}\\${ctx.env("database")} --db-user \"${ctx.env("USERNAME")}\" --db-pwd \"${ctx.env("PASSWORD")}\" --v8version \"${ctx.env("v8version")}\" --uccode \"${uccode}\""
+        def codeValue = uccode == null ? "" : uccode.toString()
+        def command = "vrunner compileext \"${workspace}\\src\\cfe\" --ibconnection /S${ctx.env("server1c")}\\${ctx.env("database")} --db-user \"${ctx.env("USERNAME")}\" --db-pwd \"${ctx.env("PASSWORD")}\" --v8version \"${ctx.env("v8version")}\" --uccode \"${codeValue}\""
         return runner.run(command)
     }
 
-    int updateDb(String uccode = "") {
-        def command = "vrunner updatedb --v1 --ibconnection /S${ctx.env("server1c")}/${ctx.env("database")} --db-user \"${ctx.env("USERNAME")}\" --db-pwd \"${ctx.env("PASSWORD")}\" --v8version \"${ctx.env("v8version")}\" --uccode \"${uccode}\" "
+    int updateDb(Object uccode = "") {
+        def codeValue = uccode == null ? "" : uccode.toString()
+        def command = "vrunner updatedb --v1 --ibconnection /S${ctx.env("server1c")}/${ctx.env("database")} --db-user \"${ctx.env("USERNAME")}\" --db-pwd \"${ctx.env("PASSWORD")}\" --v8version \"${ctx.env("v8version")}\" --uccode \"${codeValue}\" "
         def code = runner.run(command)
         if (code != 0) {
             ctx.error('РћС€РёР±РєР° РїСЂРё СѓРґР°Р»РµРЅРёРё Р±Р°Р·С‹:')
