@@ -91,7 +91,8 @@ utils = new v8_utils()
             stage('Запуск сценарных тестов') {
                 steps {
                     script {
-                    returnCode = utils.cmd("vrunner vanessa --ibconnection \"/S${server1c}\\${database}\" --db-user ${USERNAME} --db-pwd ${PASSWORD}")
+                        withCredentials([usernamePassword(credentialsId: 'Logopass', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                    returnCode = utils.cmd("vrunner vanessa --ibconnection \"/S${server1c}\\${database}\" --db-user ${USERNAME} --db-pwd ${PASSWORD}")}
                     }
                 }
             }
@@ -99,7 +100,8 @@ utils = new v8_utils()
         stage('Запуск дымовых тестов') {
                 steps {
                     script {
-                    returnCode = utils.cmd("vrunner xunit --ibconnection \"/S${server1c}\\${database}\" --db-user ${USERNAME} --db-pwd ${PASSWORD} --v8version \"${v8version}\"")
+                        withCredentials([usernamePassword(credentialsId: 'Logopass', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                    returnCode = utils.cmd("vrunner xunit --ibconnection \"/S${server1c}\\${database}\" --db-user ${USERNAME} --db-pwd ${PASSWORD} --v8version \"${v8version}\"")}
                     }
                 }
         }
@@ -107,7 +109,8 @@ utils = new v8_utils()
             stage('Запуск юнит-тестов') {
                 steps {
                     script {
-                    returnCode = utils.cmd("vrunner run --command RunUnitTests=\"${WORKSPACE}/tools/JSON/yaxunit.json\" --ibconnection \"/S${server1c}\\${database}\" --db-user ${USERNAME} --db-pwd ${PASSWORD} --v8version \"${v8version}\"")
+                        withCredentials([usernamePassword(credentialsId: 'Logopass', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                    returnCode = utils.cmd("vrunner run --command RunUnitTests=\"${WORKSPACE}/tools/JSON/yaxunit.json\" --ibconnection \"/S${server1c}\\${database}\" --db-user ${USERNAME} --db-pwd ${PASSWORD} --v8version \"${v8version}\"")}
                     }
                 }
             }
