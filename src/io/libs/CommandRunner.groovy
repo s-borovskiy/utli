@@ -1,4 +1,4 @@
-﻿package io.libs
+package io.libs
 
 class CommandRunner implements Serializable {
     PipelineContext ctx
