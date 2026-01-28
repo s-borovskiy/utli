@@ -54,9 +54,10 @@ class VRunnerService implements Serializable {
         return runner.run(command)
     }
 
-    int compileExt(String extPath, String updateDbName = "", String uccode = "") {
+    int compileExt(String extPath, String updateDbName = "", Object uccode = "") {
+        def codeValue = uccode == null ? "" : uccode.toString()
         def updateArg = updateDbName?.isEmpty() ? "" : "--updatedb \"${updateDbName}\" "
-        def command = "vrunner compileext \"${extPath}\" ${updateArg}--ibconnection /S${ctx.env("server1c")}\\${ctx.env("database")} --db-user ${ctx.env("USERNAME")} --db-pwd ${ctx.env("PASSWORD")} --v8version \"${ctx.env("v8version")}\" --uccode \"${uccode}\""
+        def command = "vrunner compileext \"${extPath}\" ${updateArg}--ibconnection /S${ctx.env("server1c")}\\${ctx.env("database")} --db-user ${ctx.env("USERNAME")} --db-pwd ${ctx.env("PASSWORD")} --v8version \"${ctx.env("v8version")}\" --uccode \"${codeValue}\""
         return runner.run(command)
     }
 
