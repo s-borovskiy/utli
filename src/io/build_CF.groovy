@@ -2,7 +2,7 @@
 
 import io.libs.v8_utils
 
-utils = new v8_utils()
+def utils = new v8_utils(this)
 
 
 String jobName = System.getenv('JOB_NAME')

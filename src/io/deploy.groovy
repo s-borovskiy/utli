@@ -2,7 +2,7 @@
 
     import io.libs.v8_utils
 
-utils = new v8_utils()
+def utils = new v8_utils(this)
     uccode = new Random().nextInt(100)
 
     String jobName = System.getenv('JOB_NAME')
@@ -22,7 +22,7 @@ utils = new v8_utils()
             steps {
                 script {
                         withCredentials([usernamePassword(credentialsId: 'Logopass', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
-                            returnCode = utils.cmd("vrunner scheduledjobs lock --ras ${server1c}:1545 --db ${database} --db-user ${USERNAME} --db-pwd ${PASSWORD} --v8version \"${v8version}\"")
+                            returnCode = utils.vrunner.scheduledJobsLock()
                         }
 
                     if (returnCode != 0) {
@@ -36,7 +36,7 @@ utils = new v8_utils()
             steps {
                 script {
                     withCredentials([usernamePassword(credentialsId: 'Logopass', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
-                        returnCode = utils.cmd("vrunner session kill --ras ${server1c}:1545 --db ${database} --uccode \"${uccode}\" --db-user ${USERNAME} --db-pwd ${PASSWORD}  --v8version \"${v8version}\"")
+                        returnCode = utils.vrunner.sessionKill(uccode)
                     }
                     if (returnCode != 0) {
                         error 'Ошибка'
@@ -57,7 +57,7 @@ utils = new v8_utils()
                 steps {
                     script {
                         withCredentials([usernamePassword(credentialsId: 'Logopass', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
-                        returnCode = utils.cmd("vrunner compileext \"${WORKSPACE}\\src\\cfe\\yaxunit\" --updatedb  \"YAXUNIT\" --ibconnection /S${server1c}\\${database} --db-user ${USERNAME} --db-pwd ${PASSWORD} --v8version \"${v8version}\" --uccode \"${uccode}\"")
+                        returnCode = utils.vrunner.compileExt("${WORKSPACE}\\src\\cfe\\yaxunit", "YAXUNIT", uccode)
                         }
                     if (returnCode != 0) {
                             error 'Ошибка'
@@ -79,7 +79,7 @@ utils = new v8_utils()
             steps {
                 script {
                     withCredentials([usernamePassword(credentialsId: 'Logopass', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
-                        returnCode = utils.cmd("vrunner session unlock --ras ${server1c}:1545 --db ${database} --db-user ${USERNAME} --db-pwd ${PASSWORD} --v8version \"${v8version}\" --uccode \"${uccode}\"")
+                        returnCode = utils.vrunner.sessionUnlock(uccode)
                     }
                     if (returnCode != 0) {
                         error 'Ошибка'
@@ -92,7 +92,7 @@ utils = new v8_utils()
                 steps {
                     script {
                         withCredentials([usernamePassword(credentialsId: 'Logopass', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
-                    returnCode = utils.cmd("vrunner vanessa --ibconnection \"/S${server1c}\\${database}\" --db-user ${USERNAME} --db-pwd ${PASSWORD}")}
+                    returnCode = utils.vrunner.runVanessa()}
                     }
                 }
             }
@@ -101,7 +101,7 @@ utils = new v8_utils()
                 steps {
                     script {
                         withCredentials([usernamePassword(credentialsId: 'Logopass', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
-                    returnCode = utils.cmd("vrunner xunit --ibconnection \"/S${server1c}\\${database}\" --db-user ${USERNAME} --db-pwd ${PASSWORD} --v8version \"${v8version}\"")}
+                    returnCode = utils.vrunner.runXunit()}
                     }
                 }
         }
@@ -110,7 +110,7 @@ utils = new v8_utils()
                 steps {
                     script {
                         withCredentials([usernamePassword(credentialsId: 'Logopass', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
-                    returnCode = utils.cmd("vrunner run --command RunUnitTests=\"${WORKSPACE}/tools/JSON/yaxunit.json\" --ibconnection \"/S${server1c}\\${database}\" --db-user ${USERNAME} --db-pwd ${PASSWORD} --v8version \"${v8version}\"")}
+                    returnCode = utils.vrunner.runUnitTests("${WORKSPACE}/tools/JSON/yaxunit.json")}
                     }
                 }
             }
