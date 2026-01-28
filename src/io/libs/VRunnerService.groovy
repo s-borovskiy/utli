@@ -39,13 +39,15 @@ class VRunnerService implements Serializable {
         return runner.run(command)
     }
 
-    int sessionKill(String uccode = "") {
-        def command = "vrunner session kill --ras ${ctx.env("server1c")}:1545 --db ${ctx.env("database")} --uccode \"${uccode}\" --db-user ${ctx.env("USERNAME")} --db-pwd ${ctx.env("PASSWORD")}  --v8version \"${ctx.env("v8version")}\""
+    int sessionKill(Object uccode = "") {
+        def codeValue = uccode == null ? "" : uccode.toString()
+        def command = "vrunner session kill --ras ${ctx.env("server1c")}:1545 --db ${ctx.env("database")} --uccode \"${codeValue}\" --db-user ${ctx.env("USERNAME")} --db-pwd ${ctx.env("PASSWORD")}  --v8version \"${ctx.env("v8version")}\""
         return runner.run(command)
     }
 
-    int sessionUnlock(String uccode = "") {
-        def command = "vrunner session unlock --ras ${ctx.env("server1c")}:1545 --db ${ctx.env("database")} --db-user ${ctx.env("USERNAME")} --db-pwd ${ctx.env("PASSWORD")} --v8version \"${ctx.env("v8version")}\" --uccode \"${uccode}\""
+    int sessionUnlock(Object uccode = "") {
+        def codeValue = uccode == null ? "" : uccode.toString()
+        def command = "vrunner session unlock --ras ${ctx.env("server1c")}:1545 --db ${ctx.env("database")} --db-user ${ctx.env("USERNAME")} --db-pwd ${ctx.env("PASSWORD")} --v8version \"${ctx.env("v8version")}\" --uccode \"${codeValue}\""
         return runner.run(command)
     }
 
