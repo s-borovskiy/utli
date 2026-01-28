@@ -1,4 +1,4 @@
-﻿package io.libs
+package io.libs
 
 import java.util.Random
 
