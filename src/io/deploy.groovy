@@ -115,16 +115,18 @@ def utils = new V8Utils(this)
                 }
             }
 
-        stage('?????????????????? ?????????? Allure') {
+        stage('Формируем отчет Allure') {
                     steps {
-                        script {
-                            allure([
-                                results: [[path: 'build/out']]
-                            ])
-                        }
+                        allure([
+                        includeProperties: false,
+                        jdk: '',
+                        properties: [],
+                        reportBuildPolicy: 'ALWAYS',
+                        results: [[path: 'build/out']]
+                    ])
                     }
         }
-        }
+     }   
 
     post {
         failure {
