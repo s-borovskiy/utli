@@ -9,6 +9,11 @@ import io.libs.V8Utils
 def utils = new V8Utils(this)
 
 pipeline {
+        parameters {
+            string(name: 'CREDENTIALS_ID_BASE', defaultValue: 'Logopass', description: 'Credentials ID for base steps')
+            string(name: 'CREDENTIALS_ID_GIT', defaultValue: 'Logopass', description: 'Credentials ID for git steps')
+            string(name: 'CREDENTIALS_ID_HRAN', defaultValue: 'Logopass', description: 'Credentials ID for hran steps')
+        }
 
       
    agent { label "localhost"}
