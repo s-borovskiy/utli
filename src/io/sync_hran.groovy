@@ -1,6 +1,4 @@
-def CREDENTIALS_ID_BASE = (params?.CREDENTIALS_ID_BASE ?: (env.CREDENTIALS_ID_BASE ?: 'Logopass'))
-def CREDENTIALS_ID_GIT = (params?.CREDENTIALS_ID_GIT ?: (env.CREDENTIALS_ID_GIT ?: CREDENTIALS_ID_BASE))
-def CREDENTIALS_ID_HRAN = (params?.CREDENTIALS_ID_HRAN ?: (env.CREDENTIALS_ID_HRAN ?: CREDENTIALS_ID_BASE))
+
 @Library('1c-utils')
 
 import io.libs.V8Utils
@@ -8,11 +6,7 @@ import io.libs.V8Utils
 def utils = new V8Utils(this)
 
 pipeline {
-        parameters {
-            string(name: 'CREDENTIALS_ID_BASE', defaultValue: 'Logopass', description: 'Credentials ID for base steps')
-            string(name: 'CREDENTIALS_ID_GIT', defaultValue: 'Logopass', description: 'Credentials ID for git steps')
-            string(name: 'CREDENTIALS_ID_HRAN', defaultValue: 'Logopass', description: 'Credentials ID for hran steps')
-        }
+
       
    agent { label "localhost"}
    stages{
