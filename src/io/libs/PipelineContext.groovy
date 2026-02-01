@@ -58,20 +58,23 @@ class PipelineContext implements Serializable {
         return workspace?.isEmpty() ? "" : "cd ${workspace} &"
     }
 
+    boolean echoOffEnabled() {
+        def value = env("ECHO_OFF", "true").toLowerCase()
+        return value in ["1", "true", "yes", "y", "on"]
+    }
+
     int run(String command, String workDir = "") {
         def prepared = command
         if (workDir != null && !workDir.isEmpty()) {
             prepared = "${workspaceLine(workDir)} ${command}"
-        }
-        if (isUnix()) {
-            return steps.sh(script: "set +x\n${prepared}", returnStatus: true)
         }
         def result = 0
         steps.withCredentials([steps.usernamePassword(credentialsId: 'Logopass', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
             if (isUnix()) {
                 result = steps.sh(script: "set +x\n${prepared}", returnStatus: true)
             } else {
-                result = steps.bat(script: "@echo off\r\nchcp 65001>nul\r\n${prepared}", returnStatus: true)
+                def echoLine = echoOffEnabled() ? "@echo off\r\n" : "@echo on\r\n"
+                result = steps.bat(script: "${echoLine}chcp 65001>nul\r\n${prepared}", returnStatus: true)
             }
         }
         return result
