@@ -1,9 +1,6 @@
-def credentialsId_base = (params?.CREDENTIALS_ID_BASE ?: (env.CREDENTIALS_ID_BASE ?: 'credentialsId_base'))
-def credentialsId_git = (params?.CREDENTIALS_ID_GIT ?: (env.CREDENTIALS_ID_GIT ?: credentialsId_git))
+@Library('1c-utils')
 
-    @Library('1c-utils')
-
-    import io.libs.V8Utils
+import io.libs.V8Utils
 
 def utils = new V8Utils(this)
     uccode = new Random().nextInt(100)
@@ -11,16 +8,12 @@ def utils = new V8Utils(this)
     String jobName = System.getenv('JOB_NAME')
 
     pipeline {
-        parameters {
-            string(name: 'CREDENTIALS_ID_BASE', defaultValue: 'credentialsId_base', description: 'Credentials ID for base steps')
-            string(name: 'CREDENTIALS_ID_GIT', defaultValue: 'credentialsId_git', description: 'Credentials ID for git steps')
-        }
+        
         agent { label 'localhost' }
         stages {
             stage('Скачиваем конфигурацию из гит') {
                 steps {
                 script {
-                    // git branch: 'develop', credentialsId: credentialsId_git, url: "https://gitverse.ru/kuzin_roman/1c_architect.git"
                     git branch: 'develop', credentialsId: credentialsId_git, url: 'https://gitverse.ru/kuzin_roman/lesson_14_full_deploy.git'
                 }
                 }
