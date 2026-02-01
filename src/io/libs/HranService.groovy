@@ -12,7 +12,7 @@ class HranService implements Serializable {
     int sync(String rep1c, String repGitLocal, String repGitRemote, String ext = "", String additionalParameters = "", String server1c = "", String storageUser = "", String storagePwd = "") {
         def user = storageUser?.trim() ? storageUser : ctx.env("login_hran")
         def pwd = storagePwd?.trim() ? storagePwd : ctx.env("pass_hran")
-        def command = "gitsync sync --storage-user \"${ctx.escapeArg(user)}\" --storage-pwd \"${ctx.escapeArg(pwd)}\" ${additionalParameters} \"${rep1c}\" \"${repGitLocal}\""
+        def command = "gitsync sync --storage-user \"gitbot\" --storage-pwd \"12\" ${additionalParameters} \"${rep1c}\" \"${repGitLocal}\""
         return runner.run(command)
     }
 
