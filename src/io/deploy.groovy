@@ -1,3 +1,4 @@
+def credentialsId = (params?.CREDENTIALS_ID ?: (env.CREDENTIALS_ID ?: 'Logopass'))
     @Library('1c-utils')
 
     import io.libs.V8Utils
@@ -8,20 +9,23 @@ def utils = new V8Utils(this)
     String jobName = System.getenv('JOB_NAME')
 
     pipeline {
+        parameters {
+            string(name: 'CREDENTIALS_ID', defaultValue: 'Logopass', description: 'Credentials ID for all steps')
+        }
         agent { label 'localhost' }
         stages {
             stage('Скачиваем конфигурацию из гит') {
                 steps {
                 script {
-                    // git branch: 'develop', credentialsId: 'token1', url: "https://gitverse.ru/kuzin_roman/1c_architect.git"
-                    git branch: 'develop', credentialsId: 'token1', url: 'https://gitverse.ru/kuzin_roman/lesson_14_full_deploy.git'
+                    // git branch: 'develop', credentialsId: credentialsId, url: "https://gitverse.ru/kuzin_roman/1c_architect.git"
+                    git branch: 'develop', credentialsId: credentialsId, url: 'https://gitverse.ru/kuzin_roman/lesson_14_full_deploy.git'
                 }
                 }
             }
         stage('Lock sheduledjobs') {
             steps {
                 script {
-                        withCredentials([usernamePassword(credentialsId: 'Logopass', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                        withCredentials([usernamePassword(credentialsId: credentialsId, usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
                             returnCode = utils.vrunner.scheduledJobsLock()
                         }
 
@@ -35,7 +39,7 @@ def utils = new V8Utils(this)
         stage('Блокируем сеансы, убираем людей') {
             steps {
                 script {
-                    withCredentials([usernamePassword(credentialsId: 'Logopass', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                    withCredentials([usernamePassword(credentialsId: credentialsId, usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
                         returnCode = utils.vrunner.sessionKill(uccode)
                     }
                     if (returnCode != 0) {
@@ -47,7 +51,7 @@ def utils = new V8Utils(this)
         stage('Собираем конфигурацию из исходников') {
                     steps {
                         script {
-                            withCredentials([usernamePassword(credentialsId: 'Logopass', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                            withCredentials([usernamePassword(credentialsId: credentialsId, usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
                             utils.buildCF('', uccode)}
                         }
                     }
@@ -56,7 +60,7 @@ def utils = new V8Utils(this)
             stage('Build CFE') {
                 steps {
                     script {
-                        withCredentials([usernamePassword(credentialsId: 'Logopass', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                        withCredentials([usernamePassword(credentialsId: credentialsId, usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
                         returnCode = utils.vrunner.compileExt("${WORKSPACE}\\src\\cfe\\yaxunit", "YAXUNIT", uccode)
                         }
                     if (returnCode != 0) {
@@ -69,7 +73,7 @@ def utils = new V8Utils(this)
             stage('Обновляем базу') {
                     steps {
                         script {
-                            withCredentials([usernamePassword(credentialsId: 'Logopass', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                            withCredentials([usernamePassword(credentialsId: credentialsId, usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
                     utils.updatedb(uccode)}
                         }
                     }
@@ -78,7 +82,7 @@ def utils = new V8Utils(this)
             stage('Разблокируем сеансы') {
             steps {
                 script {
-                    withCredentials([usernamePassword(credentialsId: 'Logopass', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                    withCredentials([usernamePassword(credentialsId: credentialsId, usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
                         returnCode = utils.vrunner.sessionUnlock(uccode)
                     }
                     if (returnCode != 0) {
@@ -91,7 +95,7 @@ def utils = new V8Utils(this)
             stage('Запуск сценарных тестов') {
                 steps {
                     script {
-                        withCredentials([usernamePassword(credentialsId: 'Logopass', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                        withCredentials([usernamePassword(credentialsId: credentialsId, usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
                     returnCode = utils.vrunner.runVanessa()}
                     }
                 }
@@ -100,7 +104,7 @@ def utils = new V8Utils(this)
         stage('Запуск дымовых тестов') {
                 steps {
                     script {
-                        withCredentials([usernamePassword(credentialsId: 'Logopass', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                        withCredentials([usernamePassword(credentialsId: credentialsId, usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
                     returnCode = utils.vrunner.runXunit()}
                     }
                 }
@@ -109,7 +113,7 @@ def utils = new V8Utils(this)
             stage('Запуск юнит-тестов') {
                 steps {
                     script {
-                        withCredentials([usernamePassword(credentialsId: 'Logopass', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                        withCredentials([usernamePassword(credentialsId: credentialsId, usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
                     returnCode = utils.vrunner.runUnitTests("${WORKSPACE}/tools/JSON/yaxunit.json")}
                     }
                 }
