@@ -15,71 +15,62 @@ pipeline {
             string(name: 'CREDENTIALS_ID_HRAN', defaultValue: 'CREDENTIALS_ID_HRAN', description: 'Credentials ID for hran steps')
         }
 
-      
-   agent { label "localhost"}
-   stages{
-        
-        stage('Init repo'){
-            steps{
-                script{
-                
+    agent { label 'localhost' }
+    stages {
+        stage('Init repo') {
+            steps {
+                script {
+                    returnCode = utils.shell.runOrError("cd /D \"${rep_git_local}\" & git checkout -B \"storage_1c\" \"origin/storage_1c\"", 'Ошибка')
 
-                returnCode = utils.shell.runOrError("cd /D \"${rep_git_local}\" & git checkout -B \"storage_1c\" \"origin/storage_1c\"", 'Ошибка')
-
-                
-                withCredentials([usernamePassword(credentialsId: CREDENTIALS_ID_GIT,
+                    withCredentials([usernamePassword(credentialsId: CREDENTIALS_ID_GIT,
                 usernameVariable: 'username',
-                passwordVariable: 'password')]){
-                returnCode = utils.shell.runOrError("cd /D \"${rep_git_local}\" & git pull https://${utils.urlEncode(username)}:${utils.urlEncode(password)}@$rep_git_remote storage_1c", 'Ошибка')
-                }              
-                 withCredentials([usernamePassword(credentialsId: CREDENTIALS_ID_HRAN,
+                passwordVariable: 'password')]) {
+                        returnCode = utils.shell.runOrError("cd /D \"${rep_git_local}\" & git pull https://${utils.urlEncode(username)}:${utils.urlEncode(password)}@$rep_git_remote storage_1c", 'Ошибка')
+                }
+                    withCredentials([usernamePassword(credentialsId: CREDENTIALS_ID_HRAN,
                 usernameVariable: 'login_hran',
-                passwordVariable: 'pass_hran')]){     
-                returnCode = utils.hran.init(rep_1c, rep_git_local+"\\src\\cf", "", "", login_hran, pass_hran)
-                if (returnCode != 0) {
-                        error 'Ошибка' 
-                    }
-                } 
-                }   
-            }  
+                passwordVariable: 'pass_hran')]) {
+                        returnCode = utils.hran.init(rep_1c, rep_git_local + "\\src\\cf", '', '', login_hran, pass_hran)
+                        if (returnCode != 0) {
+                            error 'Ошибка'
+                        }
+                }
+                }
+            }
         }
-        
-        stage('sync repo'){
-            steps{
-                script{
-                     withCredentials([usernamePassword(credentialsId: CREDENTIALS_ID_HRAN,
-                usernameVariable: 'login_hran',
-                passwordVariable: 'pass_hran')]){
-                    returnCode = utils.hran.sync(rep_1c, rep_git_local+"\\src\\cf", 
-                        "https://"+rep_git_remote,"","","", login_hran, pass_hran);
-                    if (returnCode != 0) { error 'Ошибка' }
-                     } 
-                }   
-            }  
+
+        stage('sync repo') {
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: CREDENTIALS_ID_HRAN,
+                        usernameVariable: 'login_hran',
+                        passwordVariable: 'pass_hran')]) {
+                        returnCode = utils.hran.sync(rep_1c, rep_git_local + "\\src\\cf",
+                        'https://' + rep_git_remote,'','','', login_hran, pass_hran)
+                        if (returnCode != 0) { error 'Ошибка' }
+                        }
+                }
+            }
         }
-        
-        
-        stage('push repo'){
-            steps{
-                script{
+
+        stage('push repo') {
+            steps {
+                script {
                     withCredentials([usernamePassword(credentialsId: CREDENTIALS_ID_GIT,
                         usernameVariable: 'username',
-                        passwordVariable: 'password')]){
+                        passwordVariable: 'password')]) {
                         returnCode = utils.shell.runOrError("cd /D \"${rep_git_local}\"  & git push https://${utils.urlEncode(username)}:${utils.urlEncode(password)}@$rep_git_remote", 'Ошибка')
-                    }
-                }    
-            }  
+                        }
+                }
+            }
         }
 
-        stage('branch install'){
-        steps{
-            script{                 
-                utils.shell.run("cd /D \"${rep_git_local}\" & \"C:\\Program Files\\Git\\bin\\bash.exe\" build_branch.sh") 
-            }    
-        }  
-}
-
-        
-         
-   }    
+        stage('branch install') {
+            steps {
+                script {
+                    utils.shell.run("cd /D \"${rep_git_local}\" & \"C:\\Program Files\\Git\\bin\\bash.exe\" build_branch.sh")
+                }
+            }
+        }
+    }
 }

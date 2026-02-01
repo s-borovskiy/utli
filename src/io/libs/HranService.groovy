@@ -17,9 +17,9 @@ class HranService implements Serializable {
     }
 
     int init(String rep1c, String repGitLocal, String ext = "", String server1c = "", String storageUser = "", String storagePwd = "") {
-        def user = storageUser?.trim() ? storageUser : ctx.env("login_hran")
-        def pwd = storagePwd?.trim() ? storagePwd : ctx.env("pass_hran")
-        def command = "gitsync init --storage-user ${ctx.escapeArg(user)} --storage-pwd ${ctx.escapeArg(pwd)} ${ext} \"${rep1c}\" \"${repGitLocal}\""
+        //def user = storageUser?.trim() ? storageUser : ctx.env("login_hran")
+        //def pwd = storagePwd?.trim() ? storagePwd : ctx.env("pass_hran")
+        def command = "gitsync init --storage-user ${storageUser} --storage-pwd ${storagePwd} ${ext} \"${rep1c}\" \"${repGitLocal}\""
         return runner.run(command)
     }
 }
