@@ -1,4 +1,4 @@
-def CREDENTIALS_ID_BASE = (params?.CREDENTIALS_ID_BASE ?: (env.CREDENTIALS_ID_BASE ?: 'Logopass'))
+def CREDENTIALS_ID_BASE = (params?.CREDENTIALS_ID_BASE ?: (env.CREDENTIALS_ID_BASE ?: 'CREDENTIALS_ID_BASE'))
 @Library('1c-utils')
 
 import io.libs.V8Utils
@@ -11,7 +11,7 @@ currentBuild.displayName = branchName
 
 pipeline {
         parameters {
-            string(name: 'CREDENTIALS_ID_BASE', defaultValue: 'Logopass', description: 'Credentials ID for base steps')
+            string(name: 'CREDENTIALS_ID_BASE', defaultValue: 'CREDENTIALS_ID_BASE', description: 'Credentials ID for base steps')
         }
     agent { label "${agent_machine}"}
     stages{

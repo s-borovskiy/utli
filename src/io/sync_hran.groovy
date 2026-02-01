@@ -1,6 +1,6 @@
-def CREDENTIALS_ID_BASE = (params?.CREDENTIALS_ID_BASE ?: (env.CREDENTIALS_ID_BASE ?: CREDENTIALS_ID_BASE))
-def CREDENTIALS_ID_GIT = (params?.CREDENTIALS_ID_GIT ?: (env.CREDENTIALS_ID_GIT ?: CREDENTIALS_ID_GIT))
-def CREDENTIALS_ID_HRAN = (params?.CREDENTIALS_ID_HRAN ?: (env.CREDENTIALS_ID_HRAN ?: CREDENTIALS_ID_HRAN))
+def CREDENTIALS_ID_BASE = (params?.CREDENTIALS_ID_BASE ?: (env.CREDENTIALS_ID_BASE ?: 'CREDENTIALS_ID_BASE'))
+def CREDENTIALS_ID_GIT = (params?.CREDENTIALS_ID_GIT ?: (env.CREDENTIALS_ID_GIT ?: 'CREDENTIALS_ID_GIT'))
+def CREDENTIALS_ID_HRAN = (params?.CREDENTIALS_ID_HRAN ?: (env.CREDENTIALS_ID_HRAN ?: 'CREDENTIALS_ID_HRAN'))
 
 @Library('1c-utils')
 
@@ -10,9 +10,9 @@ def utils = new V8Utils(this)
 
 pipeline {
         parameters {
-            string(name: 'CREDENTIALS_ID_BASE', defaultValue: 'Logopass', description: 'Credentials ID for base steps')
-            string(name: 'CREDENTIALS_ID_GIT', defaultValue: 'Logopass', description: 'Credentials ID for git steps')
-            string(name: 'CREDENTIALS_ID_HRAN', defaultValue: 'Logopass', description: 'Credentials ID for hran steps')
+            string(name: 'CREDENTIALS_ID_BASE', defaultValue: 'CREDENTIALS_ID_BASE', description: 'Credentials ID for base steps')
+            string(name: 'CREDENTIALS_ID_GIT', defaultValue: 'CREDENTIALS_ID_GIT', description: 'Credentials ID for git steps')
+            string(name: 'CREDENTIALS_ID_HRAN', defaultValue: 'CREDENTIALS_ID_HRAN', description: 'Credentials ID for hran steps')
         }
 
       
