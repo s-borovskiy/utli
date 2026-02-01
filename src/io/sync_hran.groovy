@@ -1,4 +1,4 @@
-def credentialsId = (params?.CREDENTIALS_ID ?: (env.CREDENTIALS_ID ?: 'Logopass'))
+def credentialsId = (params?.CREDENTIALS_ID ?: (env.CREDENTIALS_ID ?: 'Logopasshran'))
 @Library('1c-utils')
 
 import io.libs.V8Utils
@@ -7,7 +7,7 @@ def utils = new V8Utils(this)
 
 pipeline {
         parameters {
-            string(name: 'CREDENTIALS_ID', defaultValue: 'Logopass', description: 'Credentials ID for all steps')
+            string(name: 'CREDENTIALS_ID', defaultValue: 'Logopasshran', description: 'Credentials ID for all steps')
         }
    agent { label "localhost"}
    stages{
