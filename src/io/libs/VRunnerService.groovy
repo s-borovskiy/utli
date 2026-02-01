@@ -62,7 +62,7 @@ class VRunnerService implements Serializable {
     }
 
     int runVanessa() {
-        def command = "vrunner vanessa --ibconnection \"/S${ctx.env("server1c")}\\${ctx.env("database")}\" --db-user ${ctx.escapeArg(ctx.env("USERNAME"))} --db-pwd ${ctx.escapeArg(ctx.env("PASSWORD"))}"
+        def command = "vrunner vanessa --ibconnection \"/S${ctx.env("server1c")}\\${ctx.env("database")}\" --db-user ${ctx.escapeArg(ctx.env("USERNAME"))} --db-pwd ${ctx.escapeArg(ctx.env("PASSWORD"))} --testclient ::1538 --v8version \"${ctx.env("v8version")}\""
         return runner.run(command)
     }
 
