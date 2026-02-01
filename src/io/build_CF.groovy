@@ -1,4 +1,4 @@
-def credentialsId = (params?.CREDENTIALS_ID ?: (env.CREDENTIALS_ID ?: 'Logopass'))
+def CREDENTIALS_ID_BASE = (params?.CREDENTIALS_ID_BASE ?: (env.CREDENTIALS_ID_BASE ?: 'Logopass'))
 @Library('1c-utils')
 
 import io.libs.V8Utils
@@ -11,7 +11,7 @@ currentBuild.displayName = branchName
 
 pipeline {
         parameters {
-            string(name: 'CREDENTIALS_ID', defaultValue: 'Logopass', description: 'Credentials ID for all steps')
+            string(name: 'CREDENTIALS_ID_BASE', defaultValue: 'Logopass', description: 'Credentials ID for base steps')
         }
     agent { label "${agent_machine}"}
     stages{
@@ -20,10 +20,10 @@ pipeline {
         stage('Checkout GIT, basic'){
             steps{
                   script{
-                    withCredentials([usernamePassword(credentialsId: credentialsId,
+                    withCredentials([usernamePassword(credentialsId: CREDENTIALS_ID_BASE,
                  usernameVariable: 'username',
                  passwordVariable: 'password')]){
-                 git branch: branchName, credentialsId: credentialsId, url: "${env.stash}"
+                 git branch: branchName, credentialsId: CREDENTIALS_ID_BASE, url: "${env.stash}"
                  }
                 }
             }  
