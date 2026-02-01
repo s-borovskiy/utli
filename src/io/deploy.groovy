@@ -10,6 +10,7 @@ def utils = new V8Utils(this)
     pipeline {
         parameters {
             booleanParam(name: 'ECHO_OFF', defaultValue: true, description: 'Disable command echo in Windows bat')
+            booleanParam(name: 'RUN_TESTS', defaultValue: true, description: 'Run test stages (scenario/smoke/unit/cleanup/allure)')
             string(name: 'CREDENTIALS_ID_BASE', defaultValue: 'CREDENTIALS_ID_BASE', description: 'Credentials ID for base steps')
             string(name: 'CREDENTIALS_ID_GIT', defaultValue: 'CREDENTIALS_ID_GIT', description: 'Credentials ID for git steps')
         }
@@ -94,6 +95,7 @@ def utils = new V8Utils(this)
             }
 
             stage('Запуск сценарных тестов') {
+                when { expression { return params.RUN_TESTS } }
                 steps {
                     script {
                         withCredentials([usernamePassword(credentialsId: CREDENTIALS_ID_BASE, usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
@@ -103,6 +105,7 @@ def utils = new V8Utils(this)
             }
 
         stage('Запуск дымовых тестов') {
+                when { expression { return params.RUN_TESTS } }
                 steps {
                     script {
                         withCredentials([usernamePassword(credentialsId: CREDENTIALS_ID_BASE, usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
@@ -112,6 +115,7 @@ def utils = new V8Utils(this)
         }
 
             stage('Запуск юнит-тестов') {
+                when { expression { return params.RUN_TESTS } }
                 steps {
                     script {
                         withCredentials([usernamePassword(credentialsId: CREDENTIALS_ID_BASE, usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
@@ -120,7 +124,17 @@ def utils = new V8Utils(this)
                 }
             }
 
+        stage('Очищаем папку старых тестов'){
+            when { expression { return params.RUN_TESTS } }
+            steps{
+                script{
+                    returnCode = utils.cmd("rmdir \"build/out\" /S /Q")
+                }
+            }
+        }
+
         stage('Формируем отчет Allure') {
+                    when { expression { return params.RUN_TESTS } }
                     steps {
                         allure([
                         includeProperties: false,
