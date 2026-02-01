@@ -11,7 +11,10 @@ def utils = new V8Utils(this)
     String jobName = System.getenv('JOB_NAME')
 
     pipeline {
-
+        parameters {
+            string(name: 'CREDENTIALS_ID_BASE', defaultValue: 'CREDENTIALS_ID_BASE', description: 'Credentials ID for base steps')
+            string(name: 'CREDENTIALS_ID_GIT', defaultValue: 'CREDENTIALS_ID_GIT', description: 'Credentials ID for git steps')
+        }
         
         agent { label 'localhost' }
         stages {
