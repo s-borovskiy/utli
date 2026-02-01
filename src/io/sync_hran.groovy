@@ -1,4 +1,6 @@
-def credentialsId = (params?.CREDENTIALS_ID ?: (env.CREDENTIALS_ID ?: 'Logopasshran'))
+def credentialsId_hran = (params?.CREDENTIALS_ID ?: (env.CREDENTIALS_ID ?: 'Logopasshran'))
+def credentialsId_git = (params?.CREDENTIALS_ID ?: (env.CREDENTIALS_ID ?: 'Logopasshran'))
+
 @Library('1c-utils')
 
 import io.libs.V8Utils
@@ -20,12 +22,12 @@ pipeline {
                 returnCode = utils.shell.runOrError("cd /D \"${rep_git_local}\" & git checkout -B \"storage_1c\" \"origin/storage_1c\"", 'Ошибка')
 
                 
-                withCredentials([usernamePassword(credentialsId: credentialsId,
+                withCredentials([usernamePassword(credentialsId: credentialsId_git,
                 usernameVariable: 'username',
                 passwordVariable: 'password')]){
                 returnCode = utils.shell.runOrError("cd /D \"${rep_git_local}\" & git pull https://${utils.urlEncode(username)}:${utils.urlEncode(password)}@$rep_git_remote storage_1c", 'Ошибка')
                 }              
-                 withCredentials([usernamePassword(credentialsId: credentialsId,
+                 withCredentials([usernamePassword(credentialsId: credentialsId_hran,
                 usernameVariable: 'login_hran',
                 passwordVariable: 'pass_hran')]){     
                 returnCode = utils.hran.init(rep_1c, rep_git_local+"\\src\\cf", "")
@@ -40,7 +42,7 @@ pipeline {
         stage('sync repo'){
             steps{
                 script{
-                     withCredentials([usernamePassword(credentialsId: credentialsId,
+                     withCredentials([usernamePassword(credentialsId: credentialsId_hran,
                 usernameVariable: 'login_hran',
                 passwordVariable: 'pass_hran')]){
                     returnCode = utils.hran.sync(rep_1c, rep_git_local+"\\src\\cf", 
@@ -55,7 +57,7 @@ pipeline {
         stage('push repo'){
             steps{
                 script{
-                    withCredentials([usernamePassword(credentialsId: credentialsId,
+                    withCredentials([usernamePassword(credentialsId: credentialsId_git,
                         usernameVariable: 'username',
                         passwordVariable: 'password')]){
                         returnCode = utils.shell.runOrError("cd /D \"${rep_git_local}\"  & git push https://${utils.urlEncode(username)}:${utils.urlEncode(password)}@$rep_git_remote", 'Ошибка')
