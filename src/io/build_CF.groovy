@@ -11,6 +11,7 @@ currentBuild.displayName = branchName
 
 pipeline {
         parameters {
+            booleanParam(name: 'ECHO_OFF', defaultValue: true, description: 'Disable command echo in Windows bat')
             string(name: 'CREDENTIALS_ID_BASE', defaultValue: 'CREDENTIALS_ID_BASE', description: 'Credentials ID for base steps')
         }
     agent { label "${agent_machine}"}
