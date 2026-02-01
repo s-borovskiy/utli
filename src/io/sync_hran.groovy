@@ -28,7 +28,7 @@ pipeline {
                 passwordVariable: 'password')]) {
                         returnCode = utils.shell.runOrError("cd /D \"${rep_git_local}\" & git pull https://${utils.urlEncode(username)}:${utils.urlEncode(password)}@$rep_git_remote storage_1c", 'Ошибка')
                 }
-                    withCredentials([usernamePassword(credentialsId: CREDENTIALS_ID_HRAN,
+                    withCredentials([usernamePassword(credentialsId: 'CREDENTIALS_ID_HRAN',
                 usernameVariable: 'login_hran',
                 passwordVariable: 'pass_hran')]) {
                         returnCode = utils.hran.init(rep_1c, rep_git_local + "\\src\\cf", '', '', login_hran, pass_hran)
@@ -43,7 +43,7 @@ pipeline {
         stage('sync repo') {
             steps {
                 script {
-                    withCredentials([usernamePassword(credentialsId: CREDENTIALS_ID_HRAN,
+                    withCredentials([usernamePassword(credentialsId: 'CREDENTIALS_ID_HRAN',
                         usernameVariable: 'login_hran',
                         passwordVariable: 'pass_hran')]) {
                         returnCode = utils.hran.sync(rep_1c, rep_git_local + "\\src\\cf",
