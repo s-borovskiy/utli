@@ -30,7 +30,7 @@ pipeline {
                  withCredentials([usernamePassword(credentialsId: CREDENTIALS_ID_HRAN,
                 usernameVariable: 'login_hran',
                 passwordVariable: 'pass_hran')]){     
-                returnCode = utils.hran.init(rep_1c, rep_git_local+"\\src\\cf", "")
+                returnCode = utils.hran.init(rep_1c, rep_git_local+"\\src\\cf", "", "", login_hran, pass_hran)
                 if (returnCode != 0) {
                         error 'Ошибка' 
                     }
@@ -46,7 +46,7 @@ pipeline {
                 usernameVariable: 'login_hran',
                 passwordVariable: 'pass_hran')]){
                     returnCode = utils.hran.sync(rep_1c, rep_git_local+"\\src\\cf", 
-                        "https://"+rep_git_remote,"","","");
+                        "https://"+rep_git_remote,"","","", login_hran, pass_hran);
                     if (returnCode != 0) { error 'Ошибка' }
                      } 
                 }   
