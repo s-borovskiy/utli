@@ -34,7 +34,7 @@ def utils = new V8Utils(this)
             stage('Скачиваем конфигурацию из гит') {
                 steps {
                 script {
-                    git branch: ${branch}, credentialsId: CREDENTIALS_ID_GIT, url: ${rep_git}
+                    git branch: branch, credentialsId: CREDENTIALS_ID_GIT, url: rep_git
                 }
                 }
             }
