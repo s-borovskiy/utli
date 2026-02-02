@@ -8,11 +8,15 @@ def utils = new V8Utils(this)
     String jobName = System.getenv('JOB_NAME')
 
     pipeline {
-        parameters {
+        parameters { 
             booleanParam(name: 'ECHO_OFF', defaultValue: true, description: 'Disable command echo in Windows bat')
             booleanParam(name: 'RUN_TESTS', defaultValue: true, description: 'Run test stages (scenario/smoke/unit/cleanup/allure)')
             string(name: 'CREDENTIALS_ID_BASE', defaultValue: 'CREDENTIALS_ID_BASE', description: 'Credentials ID for base steps')
             string(name: 'CREDENTIALS_ID_GIT', defaultValue: 'CREDENTIALS_ID_GIT', description: 'Credentials ID for git steps')
+            string(name: 'server1c', defaultValue: 'localhost', description: 'Имя сервера')
+            string(name: 'database', defaultValue: 'Prosloyka', description: 'Имя базы')
+            string(name: 'branch', defaultValue: 'develop', description: 'Имя Ветки')
+            string(name: 'rep_git', defaultValue: 'https://gitverse.ru/kuzin_roman/synchronized_branch.git', description: 'Адрес гита')
         }
         
         agent { label 'localhost' }
@@ -30,7 +34,7 @@ def utils = new V8Utils(this)
             stage('Скачиваем конфигурацию из гит') {
                 steps {
                 script {
-                    git branch: 'develop', credentialsId: CREDENTIALS_ID_GIT, url: 'https://gitverse.ru/kuzin_roman/lesson_14_full_deploy.git'
+                    git branch: ${branch}, credentialsId: CREDENTIALS_ID_GIT, url: ${rep_git}
                 }
                 }
             }
