@@ -69,14 +69,13 @@ class PipelineContext implements Serializable {
             prepared = "${workspaceLine(workDir)} ${command}"
         }
         def result = 0
-        steps.withCredentials([steps.usernamePassword(credentialsId: 'Logopass', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
             if (isUnix()) {
                 result = steps.sh(script: "set +x\n${prepared}", returnStatus: true)
             } else {
                 def echoLine = echoOffEnabled() ? "@echo off\r\n" : "@echo on\r\n"
                 result = steps.bat(script: "${echoLine}chcp 65001>nul\r\n${prepared}", returnStatus: true)
             }
-        }
+        
         return result
     }
 
