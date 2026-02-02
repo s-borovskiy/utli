@@ -10,6 +10,9 @@ pipeline {
             string(name: 'CREDENTIALS_ID_BASE', defaultValue: 'CREDENTIALS_ID_BASE', description: 'Credentials ID for base steps')
             string(name: 'CREDENTIALS_ID_GIT', defaultValue: 'CREDENTIALS_ID_GIT', description: 'Credentials ID for git steps')
             string(name: 'CREDENTIALS_ID_HRAN', defaultValue: 'CREDENTIALS_ID_HRAN', description: 'Credentials ID for hran steps')
+            string(name: 'rep_git_local', defaultValue: '', description: 'Адрес моего локального гит-репозитория')
+            string(name: 'rep_git_remote', defaultValue: '', description: 'Адрес моего Удаленного гит-репозитория')
+            string(name: 'rep_1c', defaultValue: '', description: 'Адрес моего Удаленного гит-репозитория')
         }
 
     agent { label 'localhost' }
