@@ -17,6 +17,16 @@ def utils = new V8Utils(this)
         
         agent { label 'localhost' }
         stages {
+
+            stage('Очищаем папку старых тестов'){
+            when { expression { return params.RUN_TESTS } }
+            steps{
+                script{
+                    returnCode = utils.cmd("rmdir \"build/out\" /S /Q")
+                }
+            }
+        }
+
             stage('Скачиваем конфигурацию из гит') {
                 steps {
                 script {
@@ -124,14 +134,7 @@ def utils = new V8Utils(this)
                 }
             }
 
-        stage('Очищаем папку старых тестов'){
-            when { expression { return params.RUN_TESTS } }
-            steps{
-                script{
-                    returnCode = utils.cmd("rmdir \"build/out\" /S /Q")
-                }
-            }
-        }
+        
 
         stage('Формируем отчет Allure') {
                     when { expression { return params.RUN_TESTS } }
