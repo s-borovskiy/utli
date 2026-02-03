@@ -9,15 +9,15 @@ def utils = new V8Utils(this)
 
     pipeline {
         parameters { 
-            booleanParam(name: 'ECHO_OFF', defaultValue: true, description: 'Disable command echo in Windows bat')
-            booleanParam(name: 'LOCK', defaultValue: false, description: 'Disable command echo in Windows bat')
-            booleanParam(name: 'RUN_TESTS', defaultValue: true, description: 'Run test stages (scenario/smoke/unit/cleanup/allure)')
-            string(name: 'CREDENTIALS_ID_BASE', defaultValue: 'CREDENTIALS_ID_BASE', description: 'Credentials ID for base steps')
-            string(name: 'CREDENTIALS_ID_GIT', defaultValue: 'CREDENTIALS_ID_GIT', description: 'Credentials ID for git steps')
-            string(name: 'server1c', defaultValue: 'localhost', description: 'Имя сервера')
-            string(name: 'database', defaultValue: 'Prosloyka', description: 'Имя базы')
-            string(name: 'branch', defaultValue: 'develop', description: 'Имя Ветки')
-            string(name: 'rep_git', defaultValue: 'https://gitverse.ru/kuzin_roman/synchronized_branch.git', description: 'Адрес гита')
+            booleanParam(name: 'ECHO_OFF', defaultValue: (params?.ECHO_OFF != null ? params.ECHO_OFF : (env.ECHO_OFF != null ? env.ECHO_OFF.toBoolean() : true)), description: 'Disable command echo in Windows bat')
+            booleanParam(name: 'LOCK', defaultValue: (params?.LOCK != null ? params.LOCK : (env.LOCK != null ? env.LOCK.toBoolean() : false)), description: 'Disable command echo in Windows bat')
+            booleanParam(name: 'RUN_TESTS', defaultValue: (params?.RUN_TESTS != null ? params.RUN_TESTS : (env.RUN_TESTS != null ? env.RUN_TESTS.toBoolean() : true)), description: 'Run test stages (scenario/smoke/unit/cleanup/allure)')
+            string(name: 'CREDENTIALS_ID_BASE', defaultValue: (params?.CREDENTIALS_ID_BASE ?: (env.CREDENTIALS_ID_BASE ?: 'CREDENTIALS_ID_BASE')), description: 'Credentials ID for base steps')
+            string(name: 'CREDENTIALS_ID_GIT', defaultValue: (params?.CREDENTIALS_ID_GIT ?: (env.CREDENTIALS_ID_GIT ?: 'CREDENTIALS_ID_GIT')), description: 'Credentials ID for git steps')
+            string(name: 'server1c', defaultValue: (params?.server1c ?: (env.server1c ?: 'localhost')), description: 'Имя сервера')
+            string(name: 'database', defaultValue: (params?.database ?: (env.database ?: 'Prosloyka')), description: 'Имя базы')
+            string(name: 'branch', defaultValue: (params?.branch ?: (env.branch ?: 'develop')), description: 'Имя Ветки')
+            string(name: 'rep_git', defaultValue: (params?.rep_git ?: (env.rep_git ?: 'https://gitverse.ru/kuzin_roman/synchronized_branch.git')), description: 'Адрес гита')
         }
         
         agent { label 'localhost' }
