@@ -19,6 +19,9 @@ def utils = new V8Utils(this)
             string(name: 'branch', defaultValue: (params?.branch ?: (env.branch ?: 'develop')), description: 'Имя Ветки')
             string(name: 'rep_git', defaultValue: (params?.rep_git ?: (env.rep_git ?: 'https://gitverse.ru/kuzin_roman/synchronized_branch.git')), description: 'Адрес гита')
             string(name: 'v8version', defaultValue: (params?.v8version ?: (env.v8version ?: '8.3.25.1445')), description: 'Версия платформы')
+            string(name: 'projectKey_sonar', defaultValue: (params?.projectKey_sonar ?: (env.projectKey_sonar ?: '1c_arch')), description: 'Ключ проекта sonar')
+            string(name: 'url_sonar', defaultValue: (params?.url_sonar ?: (env.url_sonar ?: 'localhost')), description: 'УРЛ проекта sonar')
+            string(name: 'token_sonar', defaultValue: (params?.token_sonar ?: (env.token_sonar ?: '')), description: 'УРЛ проекта sonar')
         }
         
         agent { label 'localhost' }
@@ -145,15 +148,15 @@ def utils = new V8Utils(this)
 
 
               
-            /*stage('Запуск сканирования Sonar'){
+            stage('Запуск сканирования Sonar'){
                 steps{
                     script{
 
-                    returnCode = utils.cmd("sonar-scanner -Dsonar.projectKey=1c_arch -Dsonar.sources=. -Dsonar.host.url=http://localhost:9000  -Dsonar.token=${token_sonar}");
+                        returnCode = utils.cmd("sonar-scanner -Dsonar.projectKey=${projectKey_sonar} -Dsonar.sources=. -Dsonar.host.url=http://${url_sonar}:9000  -Dsonar.token=${token_sonar}");
                     
                     }    
                 } 
-            } */   
+            }  
 
         
 
