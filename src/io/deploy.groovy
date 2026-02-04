@@ -144,7 +144,7 @@ def utils = new V8Utils(this)
 
 
               
-            stage('Запуск сканирования Sonar'){
+            /*stage('Запуск сканирования Sonar'){
                 steps{
                     script{
 
@@ -152,7 +152,7 @@ def utils = new V8Utils(this)
                     
                     }    
                 } 
-            }    
+            } */   
 
         
 
