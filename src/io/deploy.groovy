@@ -142,6 +142,18 @@ def utils = new V8Utils(this)
                 }
             }
 
+
+              
+            stage('Запуск сканирования Sonar'){
+                steps{
+                    script{
+
+                    returnCode = utils.cmd("sonar-scanner -Dsonar.projectKey=1c_arch -Dsonar.sources=. -Dsonar.host.url=http://localhost:9000  -Dsonar.token=sqp_b7a5d7323aba66dbdc53ceba8e6b362f86e3c5e7");
+                    
+                    }    
+                } 
+            }    
+
         
 
         stage('Формируем отчет Allure') {
