@@ -18,7 +18,7 @@ def utils = new V8Utils(this)
             string(name: 'database', defaultValue: (params?.database ?: (env.database ?: 'Prosloyka')), description: 'Имя базы')
             string(name: 'branch', defaultValue: (params?.branch ?: (env.branch ?: 'develop')), description: 'Имя Ветки')
             string(name: 'rep_git', defaultValue: (params?.rep_git ?: (env.rep_git ?: 'https://gitverse.ru/kuzin_roman/synchronized_branch.git')), description: 'Адрес гита')
-            string(name: 'v8version', defaultValue: (params?.rep_git ?: (env.v8version ?: '8.3.25.1445')), description: 'Версия платформы')
+            string(name: 'v8version', defaultValue: (params?.v8version ?: (env.v8version ?: '8.3.25.1445')), description: 'Версия платформы')
         }
         
         agent { label 'localhost' }
