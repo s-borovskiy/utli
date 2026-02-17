@@ -22,10 +22,11 @@ class TelegramService implements Serializable {
         }
 
         ctx.steps.sh("""
-            curl -sS -X POST "https://api.telegram.org/bot${token}/sendMessage" \\
-                -H "Content-Type: application/json; charset=utf-8" \\
-                --data-raw '{\"chat_id\":${chatId},\"text\":\"${messageText.replace("\\\\","\\\\\\\\").replace("\"","\\\\\\"")}\"}'
-            """)
+                curl -sS -X POST "https://api.telegram.org/bot${token}/sendMessage" \\
+                    -H "Content-Type: application/x-www-form-urlencoded; charset=utf-8" \\
+                    --data-urlencode "chat_id=${chatId}" \\
+                    --data-urlencode "text=${messageText}"
+                """)
     }
 
     private static String escapeStringForMarkdownV2(String incoming) {
