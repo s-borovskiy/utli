@@ -6,6 +6,7 @@ class V8Utils implements Serializable {
     VRunnerService vrunner
     HranService hran
     TelegramService telegram
+    DB_method db
 
     V8Utils(steps) {
         this.ctx = new PipelineContext(steps)
@@ -13,6 +14,7 @@ class V8Utils implements Serializable {
         this.vrunner = new VRunnerService(ctx)
         this.hran = new HranService(ctx)
         this.telegram = new TelegramService(ctx)
+        this.db = new DB_method(ctx)
     }
 
     def getWorkspaceLine(workspace = "") {
@@ -49,6 +51,14 @@ class V8Utils implements Serializable {
 
     def telegram_send_message(TOKEN, CHAT_ID, messageText, success) {
         telegram.sendMessage(TOKEN, CHAT_ID, messageText, success)
+    }
+
+    int backupDb(Map options = [:]) {
+        return db.backupDB(options)
+    }
+
+    int restoreDb(Map options = [:]) {
+        return db.restoreDB(options)
     }
 
     def escapeArg(value) {
