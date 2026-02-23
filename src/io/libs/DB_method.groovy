@@ -40,8 +40,104 @@ class DB_method implements Serializable {
             }
             return restoreDB(options)
         }
-        ctx.error("Unsupported DB action '${action}'. Allowed values: backup, restore, backup_restore")
+        if (action in ["clone", "backup_restore_to_db", "backup-to-db"]) {
+            return backupAndRestoreToAnotherDb(options)
+        }
+        ctx.error("Unsupported DB action '${action}'. Allowed values: backup, restore, backup_restore, clone")
         return 1
+    }
+
+    private int backupAndRestoreToAnotherDb(Map options) {
+        def sourceDb = requireValue(options.database ?: options.sourceDatabase, "database")
+        def targetDb = requireValue(options.targetDatabase ?: options.destinationDatabase ?: options.restoreDatabase, "targetDatabase")
+        if (sourceDb.equalsIgnoreCase(targetDb)) {
+            ctx.error("targetDatabase must be different from database for clone action")
+        }
+
+        def backupOptions = new LinkedHashMap(options)
+        backupOptions.database = sourceDb
+        def backupCode = backupDB(backupOptions)
+        if (backupCode != 0) {
+            return backupCode
+        }
+
+        def tool = normalizeTool(options.tool ?: options.engine ?: options.client)
+        if (tool == "sqlcmd") {
+            def cloneOptions = new LinkedHashMap(options)
+            cloneOptions.database = targetDb
+            return restoreSqlServerClone(cloneOptions)
+        }
+
+        def restoreOptions = new LinkedHashMap(options)
+        restoreOptions.database = targetDb
+        return restoreDB(restoreOptions)
+    }
+
+    private int restoreSqlServerClone(Map options) {
+        def server = requireValue(options.server ?: options.host, "server")
+        def database = requireValue(options.database ?: options.dbName, "database")
+        def backupTarget = requireValue(options.backupTarget ?: options.backupPath, "backupTarget")
+
+        def dbLiteral = mssqlString(database)
+        def backupLiteral = mssqlString(backupTarget)
+        def sql = "USE master;" +
+            "DECLARE @db nvarchar(128) = ${dbLiteral};" +
+            "DECLARE @back_file nvarchar(4000) = ${backupLiteral};" +
+            "DECLARE @dataPath nvarchar(4000) = CONVERT(nvarchar(4000), SERVERPROPERTY('InstanceDefaultDataPath'));" +
+            "DECLARE @logPath nvarchar(4000) = CONVERT(nvarchar(4000), SERVERPROPERTY('InstanceDefaultLogPath'));" +
+            "IF (@dataPath IS NULL OR LTRIM(RTRIM(@dataPath)) = '') " +
+            "SELECT TOP 1 @dataPath = LEFT(physical_name, LEN(physical_name) - CHARINDEX('\\', REVERSE(physical_name)) + 1) " +
+            "FROM master.sys.master_files WHERE database_id = 1 AND type_desc = 'ROWS';" +
+            "IF (@logPath IS NULL OR LTRIM(RTRIM(@logPath)) = '') " +
+            "SELECT TOP 1 @logPath = LEFT(physical_name, LEN(physical_name) - CHARINDEX('\\', REVERSE(physical_name)) + 1) " +
+            "FROM master.sys.master_files WHERE database_id = 1 AND type_desc = 'LOG';" +
+            "IF RIGHT(@dataPath, 1) NOT IN ('\\', '/') SET @dataPath = @dataPath + '\\';" +
+            "IF RIGHT(@logPath, 1) NOT IN ('\\', '/') SET @logPath = @logPath + '\\';" +
+            "IF DB_ID(@db) IS NOT NULL BEGIN " +
+            "DECLARE @dropSql nvarchar(max) = N'ALTER DATABASE ' + QUOTENAME(@db) + N' SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE ' + QUOTENAME(@db) + N';';" +
+            "EXEC(@dropSql);" +
+            "END;" +
+            "CREATE TABLE #restoreFiles (" +
+            "    LogicalName NVARCHAR(128)," +
+            "    PhysicalName NVARCHAR(260)," +
+            "    Type CHAR(1)," +
+            "    FileGroupName NVARCHAR(128)," +
+            "    Size NUMERIC(20, 0)," +
+            "    MaxSize NUMERIC(20, 0)," +
+            "    FileID BIGINT," +
+            "    CreateLSN NUMERIC(25, 0)," +
+            "    DropLSN NUMERIC(25, 0) NULL," +
+            "    UniqueID UNIQUEIDENTIFIER," +
+            "    ReadOnlyLSN NUMERIC(25, 0) NULL," +
+            "    ReadWriteLSN NUMERIC(25, 0) NULL," +
+            "    BackupSizeInBytes BIGINT," +
+            "    SourceBlockSize INT," +
+            "    FileGroupID INT," +
+            "    LogGroupGUID UNIQUEIDENTIFIER NULL," +
+            "    DifferentialBaseLSN NUMERIC(25, 0) NULL," +
+            "    DifferentialBaseGUID UNIQUEIDENTIFIER," +
+            "    IsReadOnly BIT," +
+            "    IsPresent BIT," +
+            "    TDEThumbprint varbinary(32)," +
+            "    SnapshotURL nvarchar(360) NULL);" +
+            "DECLARE @fileListSql nvarchar(max) = N'RESTORE FILELISTONLY FROM DISK = N''' + REPLACE(@back_file, '''', '''''') + N'''';" +
+            "INSERT INTO #restoreFiles EXEC(@fileListSql);" +
+            "DECLARE @logicalDataFile NVARCHAR(128), @logicalLogFile NVARCHAR(128);" +
+            "SELECT TOP 1 @logicalDataFile = LogicalName FROM #restoreFiles WHERE Type = 'D' ORDER BY FileID;" +
+            "SELECT TOP 1 @logicalLogFile = LogicalName FROM #restoreFiles WHERE Type = 'L' ORDER BY FileID;" +
+            "IF (@logicalDataFile IS NULL OR @logicalLogFile IS NULL) BEGIN RAISERROR('Cannot read logical file names from backup', 16, 1); RETURN; END;" +
+            "DECLARE @mdf nvarchar(4000) = @dataPath + @db + N'.mdf';" +
+            "DECLARE @ldf nvarchar(4000) = @logPath + @db + N'_log.ldf';" +
+            "DECLARE @restoreSql nvarchar(max) = N'RESTORE DATABASE ' + QUOTENAME(@db) + N' FROM DISK = N''' + REPLACE(@back_file, '''', '''''') + N''' " +
+            "WITH FILE = 1, MOVE N''' + REPLACE(@logicalDataFile, '''', '''''') + N''' TO N''' + REPLACE(@mdf, '''', '''''') + N''', " +
+            "MOVE N''' + REPLACE(@logicalLogFile, '''', '''''') + N''' TO N''' + REPLACE(@ldf, '''', '''''') + N''', REPLACE, STATS = 10;';" +
+            "EXEC(@restoreSql);"
+
+        def command = "sqlcmd -S ${ctx.escapeArg(sqlServerHost(server, options.port))} " +
+            "${sqlcmdAuthArgs(options.username, options.password)} -b -Q ${ctx.escapeArg(sql)} " +
+            "-o ${ctx.escapeArg(sqlcmdLogPath())}"
+
+        return runner.run(command)
     }
 
     // Backward compatibility for legacy callers.
@@ -85,65 +181,55 @@ class DB_method implements Serializable {
     }
 
     private int restoreSqlServer(Map options) {
-        def server = requireValue(options.server ?: options.host, "server")
-        def database = requireValue(options.database ?: options.dbName, "database")
-        def backupTarget = requireValue(options.backupTarget ?: options.backupPath, "backupTarget")
-
-        def dbName = mssqlIdentifier(database)
-        def dbLiteral = mssqlString(database)
-        def backupLiteral = mssqlString(backupTarget)
-        def sql = "BEGIN TRY " +
-            "IF DB_ID(${dbLiteral}) IS NULL BEGIN RAISERROR('Database not found', 16, 1); RETURN; END;" +
-            "ALTER DATABASE ${dbName} SET SINGLE_USER WITH ROLLBACK IMMEDIATE;" +
-            "RESTORE DATABASE ${dbName} FROM DISK = ${backupLiteral} WITH REPLACE, STATS = 10;" +
-            "ALTER DATABASE ${dbName} SET MULTI_USER;" +
-            "END TRY BEGIN CATCH " +
-            "IF DB_ID(${dbLiteral}) IS NOT NULL BEGIN TRY ALTER DATABASE ${dbName} SET MULTI_USER; END TRY BEGIN CATCH END CATCH END;" +
-            "THROW; END CATCH;"
-
-        def command = "sqlcmd -S ${ctx.escapeArg(sqlServerHost(server, options.port))} " +
-            "${sqlcmdAuthArgs(options.username, options.password)} -b -Q ${ctx.escapeArg(sql)} " +
-            "-o ${ctx.escapeArg(sqlcmdLogPath())}"
-
-        return runner.run(command)
+        // Common restore entry for SQL Server.
+        // Uses clone-safe restore with MOVE so DB_TARGET can be different from source DB.
+        return restoreSqlServerClone(options)
     }
 
     private int backupPostgres(Map options) {
         def host = requireValue(options.server ?: options.host, "host")
         def database = requireValue(options.database ?: options.dbName, "database")
-        def backupDb = requireValue(options.backupTarget ?: options.backupName, "backupTarget")
-        if (database.equalsIgnoreCase(backupDb)) {
-            ctx.error("backupTarget must be different from database for psql mode")
+        def backupTarget = requireValue(options.backupTarget ?: options.backupPath, "backupTarget")
+
+        if (ctx.fileExists(backupTarget)) {
+            ctx.echo("Backup already exists: ${backupTarget}")
+            return 1
         }
 
-        def maintenanceDb = optionalValue(options.maintenanceDb, "postgres")
-        def sql = "DO \$\$ BEGIN " +
-            "IF EXISTS (SELECT 1 FROM pg_database WHERE datname = ${pgsqlString(backupDb)}) THEN " +
-            "RAISE EXCEPTION 'Database % already exists', ${pgsqlString(backupDb)}; " +
-            "END IF; END \$\$;" +
-            "SELECT pg_terminate_backend(pid) FROM pg_stat_activity " +
-            "WHERE datname = ${pgsqlString(database)} AND pid <> pg_backend_pid();" +
-            "CREATE DATABASE ${pgsqlIdentifier(backupDb)} WITH TEMPLATE ${pgsqlIdentifier(database)};"
-
-        return runner.run(psqlCommand(host, options.port, maintenanceDb, options.username, sql))
+        def command = pgDumpCommand(host, options.port, database, options.username, backupTarget)
+        return runner.run(command)
     }
 
     private int restorePostgres(Map options) {
         def host = requireValue(options.server ?: options.host, "host")
         def database = requireValue(options.database ?: options.dbName, "database")
-        def backupDb = requireValue(options.backupTarget ?: options.backupName, "backupTarget")
+        def backupTarget = requireValue(options.backupTarget ?: options.backupPath, "backupTarget")
         def maintenanceDb = optionalValue(options.maintenanceDb, "postgres")
 
-        def sql = "DO \$\$ BEGIN " +
-            "IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = ${pgsqlString(backupDb)}) THEN " +
-            "RAISE EXCEPTION 'Backup database % does not exist', ${pgsqlString(backupDb)}; " +
-            "END IF; END \$\$;" +
-            "SELECT pg_terminate_backend(pid) FROM pg_stat_activity " +
-            "WHERE datname IN (${pgsqlString(database)}, ${pgsqlString(backupDb)}) AND pid <> pg_backend_pid();" +
-            "DROP DATABASE IF EXISTS ${pgsqlIdentifier(database)};" +
-            "CREATE DATABASE ${pgsqlIdentifier(database)} WITH TEMPLATE ${pgsqlIdentifier(backupDb)};"
+        if (!ctx.fileExists(backupTarget)) {
+            ctx.error("Backup file not found: ${backupTarget}")
+        }
 
-        return runner.run(psqlCommand(host, options.port, maintenanceDb, options.username, sql))
+        def terminateSql = "SELECT pg_terminate_backend(pid) FROM pg_stat_activity " +
+            "WHERE datname = ${pgsqlString(database)} AND pid <> pg_backend_pid();"
+        def terminateCode = runner.run(psqlCommand(host, options.port, maintenanceDb, options.username, terminateSql))
+        if (terminateCode != 0) {
+            return terminateCode
+        }
+
+        def dropSql = "DROP DATABASE IF EXISTS ${pgsqlIdentifier(database)};"
+        def dropCode = runner.run(psqlCommand(host, options.port, maintenanceDb, options.username, dropSql))
+        if (dropCode != 0) {
+            return dropCode
+        }
+
+        def createSql = "CREATE DATABASE ${pgsqlIdentifier(database)};"
+        def createCode = runner.run(psqlCommand(host, options.port, maintenanceDb, options.username, createSql))
+        if (createCode != 0) {
+            return createCode
+        }
+
+        return runner.run(psqlFileRestoreCommand(host, options.port, database, options.username, backupTarget))
     }
 
     private String normalizeTool(def rawTool) {
@@ -186,6 +272,23 @@ class DB_method implements Serializable {
             "-c ${ctx.escapeArg(sql)}"
 
         return command
+    }
+
+    private String psqlFileRestoreCommand(String host, def port, String database, def username, String backupFile) {
+        return "psql -h ${ctx.escapeArg(host)} " +
+            (port != null && !port.toString().trim().isEmpty() ? "-p ${ctx.escapeArg(port.toString().trim())} " : "") +
+            "-d ${ctx.escapeArg(database)} " +
+            (username != null && !username.toString().trim().isEmpty() ? "-U ${ctx.escapeArg(username.toString())} " : "") +
+            "-w -v ON_ERROR_STOP=1 -X " +
+            "-L ${ctx.escapeArg(psqlLogPath())} " +
+            "-f ${ctx.escapeArg(backupFile)}"
+    }
+
+    private String pgDumpCommand(String host, def port, String database, def username, String backupFile) {
+        return "pg_dump -h ${ctx.escapeArg(host)} " +
+            (port != null && !port.toString().trim().isEmpty() ? "-p ${ctx.escapeArg(port.toString().trim())} " : "") +
+            (username != null && !username.toString().trim().isEmpty() ? "-U ${ctx.escapeArg(username.toString())} " : "") +
+            "-d ${ctx.escapeArg(database)} -w -F p -f ${ctx.escapeArg(backupFile)} --no-owner --no-privileges"
     }
 
     private String requireValue(def value, String optionName) {
