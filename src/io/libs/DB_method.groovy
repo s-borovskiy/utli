@@ -25,55 +25,7 @@ class DB_method implements Serializable {
         return restorePostgres(options)
     }
 
-    int runAction(Map options = [:]) {
-        def action = requireValue(options.action, "action").toLowerCase()
-        if (action == "backup") {
-            return backupDB(options)
-        }
-        if (action == "restore") {
-            return restoreDB(options)
-        }
-        if (action in ["backup_restore", "backup-restore", "both"]) {
-            def backupCode = backupDB(options)
-            if (backupCode != 0) {
-                return backupCode
-            }
-            return restoreDB(options)
-        }
-        if (action in ["clone", "backup_restore_to_db", "backup-to-db"]) {
-            return backupAndRestoreToAnotherDb(options)
-        }
-        ctx.error("Unsupported DB action '${action}'. Allowed values: backup, restore, backup_restore, clone")
-        return 1
-    }
-
-    private int backupAndRestoreToAnotherDb(Map options) {
-        def sourceDb = requireValue(options.database ?: options.sourceDatabase, "database")
-        def targetDb = requireValue(options.targetDatabase ?: options.destinationDatabase ?: options.restoreDatabase, "targetDatabase")
-        if (sourceDb.equalsIgnoreCase(targetDb)) {
-            ctx.error("targetDatabase must be different from database for clone action")
-        }
-
-        def backupOptions = new LinkedHashMap(options)
-        backupOptions.database = sourceDb
-        def backupCode = backupDB(backupOptions)
-        if (backupCode != 0) {
-            return backupCode
-        }
-
-        def tool = normalizeTool(options.tool ?: options.engine ?: options.client)
-        if (tool == "sqlcmd") {
-            def cloneOptions = new LinkedHashMap(options)
-            cloneOptions.database = targetDb
-            return restoreSqlServerClone(cloneOptions)
-        }
-
-        def restoreOptions = new LinkedHashMap(options)
-        restoreOptions.database = targetDb
-        return restoreDB(restoreOptions)
-    }
-
-    private int restoreSqlServerClone(Map options) {
+    private int restoreSqlServer(Map options) {
         def server = requireValue(options.server ?: options.host, "server")
         def database = requireValue(options.database ?: options.dbName, "database")
         def backupTarget = requireValue(options.backupTarget ?: options.backupPath, "backupTarget")
@@ -178,12 +130,6 @@ class DB_method implements Serializable {
             "-o ${ctx.escapeArg(sqlcmdLogPath())}"
 
         return runner.run(command)
-    }
-
-    private int restoreSqlServer(Map options) {
-        // Common restore entry for SQL Server.
-        // Uses clone-safe restore with MOVE so DB_TARGET can be different from source DB.
-        return restoreSqlServerClone(options)
     }
 
     private int backupPostgres(Map options) {
