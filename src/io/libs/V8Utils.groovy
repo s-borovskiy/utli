@@ -61,6 +61,10 @@ class V8Utils implements Serializable {
         return db.restoreDB(options)
     }
 
+    int runDbAction(Map options = [:]) {
+        return db.runAction(options)
+    }
+
     def escapeArg(value) {
         return ctx.escapeArg(value)
     }

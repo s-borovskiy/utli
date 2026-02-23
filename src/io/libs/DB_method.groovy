@@ -25,6 +25,25 @@ class DB_method implements Serializable {
         return restorePostgres(options)
     }
 
+    int runAction(Map options = [:]) {
+        def action = requireValue(options.action, "action").toLowerCase()
+        if (action == "backup") {
+            return backupDB(options)
+        }
+        if (action == "restore") {
+            return restoreDB(options)
+        }
+        if (action in ["backup_restore", "backup-restore", "both"]) {
+            def backupCode = backupDB(options)
+            if (backupCode != 0) {
+                return backupCode
+            }
+            return restoreDB(options)
+        }
+        ctx.error("Unsupported DB action '${action}'. Allowed values: backup, restore, backup_restore")
+        return 1
+    }
+
     // Backward compatibility for legacy callers.
     int backupDB(String serverSql, String baseName, String backupFullPath) {
         return backupDB([
