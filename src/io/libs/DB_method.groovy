@@ -14,6 +14,9 @@ class DB_method implements Serializable {
         if (tool == "sqlcmd") {
             return backupSqlServer(options)
         }
+        if (tool == "ibcmd") {
+            return backupIbcmd(options)
+        }
         return backupPostgres(options)
     }
 
@@ -21,6 +24,9 @@ class DB_method implements Serializable {
         def tool = normalizeTool(options.tool ?: options.engine ?: options.client)
         if (tool == "sqlcmd") {
             return restoreSqlServer(options)
+        }
+        if (tool == "ibcmd") {
+            return restoreIbcmd(options)
         }
         return restorePostgres(options)
     }
@@ -146,6 +152,33 @@ class DB_method implements Serializable {
         return runner.run(command)
     }
 
+    private int backupIbcmd(Map options) {
+        def server = requireValue(options.server ?: options.host, "server")
+        def database = requireValue(options.database ?: options.dbName, "database")
+        def backupTarget = requireValue(options.backupTarget ?: options.backupPath, "backupTarget")
+        def dbms = normalizeIbcmdDbms(options.dbms ?: options.ibcmdDbms ?: options.databaseEngine)
+        def dataDir = requireValue(options.ibcmdDataDir ?: options.dataDir, "ibcmdDataDir")
+        def ibcmdPath = optionalValue(options.ibcmdPath, "ibcmd")
+        def dbServer = ibcmdServer(server, options.port, dbms)
+
+        if (ctx.fileExists(backupTarget)) {
+            ctx.echo("Backup already exists: ${backupTarget}")
+            return 1
+        }
+
+        def command = "${ctx.escapeArg(ibcmdPath)} infobase dump " +
+            "--db-server=${ctx.escapeArg(dbServer)} " +
+            "--dbms=${ctx.escapeArg(dbms)} " +
+            (options.username != null && !options.username.toString().trim().isEmpty() ? "--db-user=${ctx.escapeArg(options.username.toString())} " : "") +
+            (options.password != null && !options.password.toString().trim().isEmpty() ? "--db-pwd=${ctx.escapeArg(options.password.toString())} " : "") +
+            "--db-name=${ctx.escapeArg(database)} " +
+            "--data=${ctx.escapeArg(dataDir)} " +
+            "${ctx.escapeArg(backupTarget)} " +
+            "> ${ctx.escapeArg(ibcmdLogPath())} 2>&1"
+
+        return runner.run(command)
+    }
+
     private int restorePostgres(Map options) {
         def host = requireValue(options.server ?: options.host, "host")
         def database = requireValue(options.database ?: options.dbName, "database")
@@ -178,6 +211,32 @@ class DB_method implements Serializable {
         return runner.run(psqlFileRestoreCommand(host, options.port, database, options.username, backupTarget))
     }
 
+    private int restoreIbcmd(Map options) {
+        def server = requireValue(options.server ?: options.host, "server")
+        def database = requireValue(options.database ?: options.dbName, "database")
+        def backupTarget = requireValue(options.backupTarget ?: options.backupPath, "backupTarget")
+        def dbms = normalizeIbcmdDbms(options.dbms ?: options.ibcmdDbms ?: options.databaseEngine)
+        def dataDir = requireValue(options.ibcmdDataDir ?: options.dataDir, "ibcmdDataDir")
+        def ibcmdPath = optionalValue(options.ibcmdPath, "ibcmd")
+        def dbServer = ibcmdServer(server, options.port, dbms)
+
+        if (!ctx.fileExists(backupTarget)) {
+            ctx.error("Backup file not found: ${backupTarget}")
+        }
+
+        def command = "${ctx.escapeArg(ibcmdPath)} infobase restore " +
+            "--db-server=${ctx.escapeArg(dbServer)} " +
+            "--dbms=${ctx.escapeArg(dbms)} " +
+            (options.username != null && !options.username.toString().trim().isEmpty() ? "--db-user=${ctx.escapeArg(options.username.toString())} " : "") +
+            (options.password != null && !options.password.toString().trim().isEmpty() ? "--db-pwd=${ctx.escapeArg(options.password.toString())} " : "") +
+            "--db-name=${ctx.escapeArg(database)} " +
+            "--data=${ctx.escapeArg(dataDir)} " +
+            "${ctx.escapeArg(backupTarget)} " +
+            "> ${ctx.escapeArg(ibcmdLogPath())} 2>&1"
+
+        return runner.run(command)
+    }
+
     private String normalizeTool(def rawTool) {
         def tool = rawTool == null ? "" : rawTool.toString().trim().toLowerCase()
         if (tool in ["sqlcmd", "mssql", "sqlserver"]) {
@@ -186,8 +245,32 @@ class DB_method implements Serializable {
         if (tool in ["psql", "postgres", "postgresql"]) {
             return "psql"
         }
-        ctx.error("Unsupported DB tool '${rawTool}'. Allowed values: sqlcmd, psql")
+        if (tool in ["ibcmd", "1c", "1c-ib"]) {
+            return "ibcmd"
+        }
+        ctx.error("Unsupported DB tool '${rawTool}'. Allowed values: sqlcmd, psql, ibcmd")
         return ""
+    }
+
+    private String normalizeIbcmdDbms(def rawDbms) {
+        def dbms = rawDbms == null ? "" : rawDbms.toString().trim().toLowerCase()
+        if (dbms in ["mssql", "mssqlserver", "sqlserver"]) {
+            return "MSSQLServer"
+        }
+        if (dbms in ["postgres", "postgresql", "pgsql"]) {
+            return "PostgreSQL"
+        }
+        ctx.error("Unsupported ibcmd DBMS '${rawDbms}'. Allowed values: MSSQLServer, PostgreSQL")
+        return ""
+    }
+
+    private String ibcmdServer(String server, def port, String dbms) {
+        def value = server.toString().trim()
+        if (port == null || port.toString().trim().isEmpty()) {
+            return value
+        }
+        def portValue = port.toString().trim()
+        return dbms == "PostgreSQL" ? "${value}:${portValue}" : "${value},${portValue}"
     }
 
     private String sqlcmdAuthArgs(def username, def password) {
@@ -272,5 +355,10 @@ class DB_method implements Serializable {
     private String psqlLogPath() {
         def workspace = ctx.env("WORKSPACE")
         return workspace?.trim() ? "${workspace}\\psql_log.txt" : "psql_log.txt"
+    }
+
+    private String ibcmdLogPath() {
+        def workspace = ctx.env("WORKSPACE")
+        return workspace?.trim() ? "${workspace}\\ibcmd_log.txt" : "ibcmd_log.txt"
     }
 }

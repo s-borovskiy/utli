@@ -9,7 +9,10 @@ pipeline {
         booleanParam(name: 'ECHO_OFF', defaultValue: true, description: 'Disable command echo in Windows bat')
         string(name: 'CREDENTIALS_ID_DB', defaultValue: (params?.CREDENTIALS_ID_DB ?: (env.CREDENTIALS_ID_DB ?: 'CREDENTIALS_ID_DB')), description: 'Credentials ID for DB auth')
 
-        choice(name: 'DB_TOOL', choices: ['sqlcmd', 'psql'], description: 'DB client tool')
+        choice(name: 'DB_TOOL', choices: ['sqlcmd', 'psql', 'ibcmd'], description: 'DB client tool')
+        choice(name: 'IBCMD_DBMS', choices: ['MSSQLServer', 'PostgreSQL'], description: 'DBMS for ibcmd mode')
+        string(name: 'IBCMD_PATH', defaultValue: (params?.IBCMD_PATH ?: (env.IBCMD_PATH ?: 'ibcmd')), description: 'Path to ibcmd executable')
+        string(name: 'IBCMD_DATA_DIR', defaultValue: (params?.IBCMD_DATA_DIR ?: (env.IBCMD_DATA_DIR ?: 'C:\\temp\\ibcmd_data')), description: 'Temporary --data directory for ibcmd')
         string(name: 'DB_HOST', defaultValue: (params?.DB_HOST ?: (env.DB_HOST ?: (env.server1c ?: 'localhost'))), description: 'DB host')
         string(name: 'DB_PORT', defaultValue: (params?.DB_PORT ?: (env.DB_PORT ?: '')), description: 'DB port (optional)')
         string(name: 'DB_NAME', defaultValue: (params?.DB_NAME ?: (env.DB_NAME ?: (env.database ?: 'Prosloyka'))), description: 'Source DB name for backup')
@@ -46,7 +49,13 @@ pipeline {
                     }
 
                     if (!params.DB_PORT?.trim()) {
-                        env.EFFECTIVE_DB_PORT = params.DB_TOOL == 'sqlcmd' ? '1433' : '5432'
+                        if (params.DB_TOOL == 'sqlcmd') {
+                            env.EFFECTIVE_DB_PORT = '1433'
+                        } else if (params.DB_TOOL == 'psql') {
+                            env.EFFECTIVE_DB_PORT = '5432'
+                        } else {
+                            env.EFFECTIVE_DB_PORT = params.IBCMD_DBMS == 'MSSQLServer' ? '1433' : '5432'
+                        }
                     } else {
                         env.EFFECTIVE_DB_PORT = params.DB_PORT.trim()
                     }
@@ -56,8 +65,19 @@ pipeline {
 
                     def backupNameRaw = params.BACKUP_NAME?.trim() ? params.BACKUP_NAME.trim() : params.DB_NAME.trim()
                     def backupNameSafe = backupNameRaw.replaceAll('[^a-zA-Z0-9._-]', '_')
-                    def extension = params.DB_TOOL == 'sqlcmd' ? '.bak' : '.sql'
+                    def extension = params.DB_TOOL == 'sqlcmd' ? '.bak' : (params.DB_TOOL == 'psql' ? '.sql' : '.dt')
                     env.BACKUP_FILE_PATH = "${params.BACKUP_DIR.trim()}\\${backupNameSafe}_${env.BUILD_NUMBER}${extension}"
+
+                    if (params.DB_TOOL == 'ibcmd') {
+                        if (!params.IBCMD_PATH?.trim()) {
+                            error 'IBCMD_PATH is required for ibcmd'
+                        }
+                        if (!params.IBCMD_DATA_DIR?.trim()) {
+                            error 'IBCMD_DATA_DIR is required for ibcmd'
+                        }
+                        def mkdirDataCmd = "if not exist ${utils.escapeArg(params.IBCMD_DATA_DIR.trim())} mkdir ${utils.escapeArg(params.IBCMD_DATA_DIR.trim())}"
+                        utils.shell.runOrError(mkdirDataCmd, 'Unable to create ibcmd data directory')
+                    }
 
                     writeFile(file: 'backup_path.txt', text: env.BACKUP_FILE_PATH + "\r\n")
                     echo "Backup path: ${env.BACKUP_FILE_PATH}"
@@ -75,6 +95,9 @@ pipeline {
                             port: env.EFFECTIVE_DB_PORT,
                             database: params.DB_NAME.trim(),
                             backupTarget: env.BACKUP_FILE_PATH,
+                            dbms: params.IBCMD_DBMS,
+                            ibcmdPath: params.IBCMD_PATH.trim(),
+                            ibcmdDataDir: params.IBCMD_DATA_DIR.trim(),
                             maintenanceDb: params.PSQL_MAINTENANCE_DB.trim(),
                             username: dbUser,
                             password: dbPassword
@@ -82,7 +105,7 @@ pipeline {
 
                         int returnCode = utils.backupDb(options)
                         if (returnCode != 0) {
-                            error "Backup failed. Check sqlcmd_log.txt or psql_log.txt in workspace."
+                            error "Backup failed. Check sqlcmd_log.txt, psql_log.txt or ibcmd_log.txt in workspace."
                         }
                     }
 
@@ -119,6 +142,9 @@ pipeline {
                             port: env.EFFECTIVE_DB_PORT,
                             database: params.DB_TARGET.trim(),
                             backupTarget: env.BACKUP_FILE_PATH,
+                            dbms: params.IBCMD_DBMS,
+                            ibcmdPath: params.IBCMD_PATH.trim(),
+                            ibcmdDataDir: params.IBCMD_DATA_DIR.trim(),
                             maintenanceDb: params.PSQL_MAINTENANCE_DB.trim(),
                             username: dbUser,
                             password: dbPassword
@@ -126,7 +152,7 @@ pipeline {
 
                         int returnCode = utils.restoreDb(options)
                         if (returnCode != 0) {
-                            error "Restore failed. Check sqlcmd_log.txt or psql_log.txt in workspace."
+                            error "Restore failed. Check sqlcmd_log.txt, psql_log.txt or ibcmd_log.txt in workspace."
                         }
                     }
 
