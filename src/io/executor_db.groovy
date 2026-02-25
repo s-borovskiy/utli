@@ -13,17 +13,12 @@ pipeline {
         choice(name: 'DBMS', choices: ['MSSQLServer', 'PostgreSQL'], description: 'Database engine')
         choice(name: 'DB_TOOL', choices: ['auto', 'sqlcmd', 'psql', 'ibcmd'], description: 'DB client tool (auto maps DBMS -> sqlcmd/psql)')
         string(name: 'IBCMD_PATH', defaultValue: (params?.IBCMD_PATH ?: (env.IBCMD_PATH ?: 'ibcmd')), description: 'Path to ibcmd executable')
-        string(name: 'IBCMD_DATA_DIR', defaultValue: (params?.IBCMD_DATA_DIR ?: (env.IBCMD_DATA_DIR ?: 'C:\\temp\\ibcmd_data')), description: 'Value for ibcmd --data parameter (for example 1cv8\\bin path)')
         string(name: 'DB_HOST', defaultValue: (params?.DB_HOST ?: (env.DB_HOST ?: (env.server1c ?: 'localhost'))), description: 'DB host')
-        string(name: 'DB_PORT', defaultValue: (params?.DB_PORT ?: (env.DB_PORT ?: '')), description: 'DB port for sqlcmd/psql (optional, ignored for ibcmd)')
         string(name: 'DB_NAME', defaultValue: (params?.DB_NAME ?: (env.DB_NAME ?: (env.database ?: 'Prosloyka'))), description: 'Source DB name for backup')
         string(name: 'DB_TARGET', defaultValue: (params?.DB_TARGET ?: (env.DB_TARGET ?: 'Prosloyka_copy')), description: 'Target DB name for restore')
 
         string(name: 'BACKUP_DIR', defaultValue: (params?.BACKUP_DIR ?: (env.BACKUP_DIR ?: 'C:\\temp\\db_backups')), description: 'Folder where backup file will be stored')
         string(name: 'BACKUP_NAME', defaultValue: (params?.BACKUP_NAME ?: (env.BACKUP_NAME ?: 'db_backup')), description: 'Backup file prefix (without extension)')
-
-        booleanParam(name: 'USE_CREDENTIALS', defaultValue: (params?.USE_CREDENTIALS != null ? params.USE_CREDENTIALS : (env.USE_CREDENTIALS != null ? env.USE_CREDENTIALS.toBoolean() : true)), description: 'Use Jenkins DB credentials for psql and ibcmd --db-user/--db-pwd')
-        string(name: 'PSQL_MAINTENANCE_DB', defaultValue: (params?.PSQL_MAINTENANCE_DB ?: (env.PSQL_MAINTENANCE_DB ?: 'postgres')), description: 'Maintenance database for psql DROP/CREATE DATABASE')
     }
 
     agent { label 'localhost' }
@@ -61,14 +56,6 @@ pipeline {
                         error 'psql can be used only with DBMS=PostgreSQL'
                     }
 
-                    if (env.EFFECTIVE_DB_TOOL == 'ibcmd') {
-                        env.EFFECTIVE_DB_PORT = ''
-                    } else if (!params.DB_PORT?.trim()) {
-                        env.EFFECTIVE_DB_PORT = params.DBMS == 'MSSQLServer' ? '1433' : '5432'
-                    } else {
-                        env.EFFECTIVE_DB_PORT = params.DB_PORT.trim()
-                    }
-
                     def mkdirCmd = "if not exist ${utils.escapeArg(params.BACKUP_DIR.trim())} mkdir ${utils.escapeArg(params.BACKUP_DIR.trim())}"
                     utils.shell.runOrError(mkdirCmd, 'Unable to create backup directory')
 
@@ -81,14 +68,9 @@ pipeline {
                         if (!params.IBCMD_PATH?.trim()) {
                             error 'IBCMD_PATH is required for ibcmd'
                         }
-                        if (!params.IBCMD_DATA_DIR?.trim()) {
-                            error 'IBCMD_DATA_DIR is required for ibcmd'
-                        }
                         if (!params.CREDENTIALS_ID_IBCMD?.trim()) {
                             error 'CREDENTIALS_ID_IBCMD is required for ibcmd'
                         }
-                        def mkdirDataCmd = "if not exist ${utils.escapeArg(params.IBCMD_DATA_DIR.trim())} mkdir ${utils.escapeArg(params.IBCMD_DATA_DIR.trim())}"
-                        utils.shell.runOrError(mkdirDataCmd, 'Unable to create ibcmd data directory')
                     }
 
                     writeFile(file: 'backup_path.txt', text: env.BACKUP_FILE_PATH + "\r\n")
@@ -104,15 +86,12 @@ pipeline {
                         def options = [
                             tool: env.EFFECTIVE_DB_TOOL,
                             host: params.DB_HOST.trim(),
-                            port: env.EFFECTIVE_DB_TOOL == 'ibcmd' ? '' : env.EFFECTIVE_DB_PORT,
                             database: params.DB_NAME.trim(),
                             backupTarget: env.BACKUP_FILE_PATH,
                             dbms: params.DBMS,
                             ibcmdPath: params.IBCMD_PATH.trim(),
-                            ibcmdDataDir: params.IBCMD_DATA_DIR.trim(),
                             ibcmdUser: ibcmdUser,
                             ibcmdPassword: ibcmdPassword,
-                            maintenanceDb: params.PSQL_MAINTENANCE_DB.trim(),
                             username: dbUser,
                             password: dbPassword
                         ]
@@ -129,12 +108,8 @@ pipeline {
                     }
 
                     if (env.EFFECTIVE_DB_TOOL == 'psql') {
-                        if (!params.USE_CREDENTIALS) {
-                            runBackup('', '')
-                            return
-                        }
                         if (!params.CREDENTIALS_ID_DB?.trim()) {
-                            error 'CREDENTIALS_ID_DB is required when credentials are enabled'
+                            error 'CREDENTIALS_ID_DB is required for psql'
                         }
                         withCredentials([usernamePassword(credentialsId: params.CREDENTIALS_ID_DB, usernameVariable: 'DB_USER', passwordVariable: 'DB_PASSWORD')]) {
                             withEnv(["PGPASSWORD=${DB_PASSWORD}"]) {
@@ -149,15 +124,11 @@ pipeline {
                     }
 
                     withCredentials([usernamePassword(credentialsId: params.CREDENTIALS_ID_IBCMD, usernameVariable: 'IBCMD_USER', passwordVariable: 'IBCMD_PASSWORD')]) {
-                        if (params.USE_CREDENTIALS) {
-                            if (!params.CREDENTIALS_ID_DB?.trim()) {
-                                error 'CREDENTIALS_ID_DB is required when USE_CREDENTIALS=true'
-                            }
-                            withCredentials([usernamePassword(credentialsId: params.CREDENTIALS_ID_DB, usernameVariable: 'DB_USER', passwordVariable: 'DB_PASSWORD')]) {
-                                runBackup(DB_USER, DB_PASSWORD, IBCMD_USER, IBCMD_PASSWORD)
-                            }
-                        } else {
-                            runBackup('', '', IBCMD_USER, IBCMD_PASSWORD)
+                        if (!params.CREDENTIALS_ID_DB?.trim()) {
+                            error 'CREDENTIALS_ID_DB is required for ibcmd --db-user/--db-pwd'
+                        }
+                        withCredentials([usernamePassword(credentialsId: params.CREDENTIALS_ID_DB, usernameVariable: 'DB_USER', passwordVariable: 'DB_PASSWORD')]) {
+                            runBackup(DB_USER, DB_PASSWORD, IBCMD_USER, IBCMD_PASSWORD)
                         }
                     }
                 }
@@ -171,15 +142,12 @@ pipeline {
                         def options = [
                             tool: env.EFFECTIVE_DB_TOOL,
                             host: params.DB_HOST.trim(),
-                            port: env.EFFECTIVE_DB_TOOL == 'ibcmd' ? '' : env.EFFECTIVE_DB_PORT,
                             database: params.DB_TARGET.trim(),
                             backupTarget: env.BACKUP_FILE_PATH,
                             dbms: params.DBMS,
                             ibcmdPath: params.IBCMD_PATH.trim(),
-                            ibcmdDataDir: params.IBCMD_DATA_DIR.trim(),
                             ibcmdUser: ibcmdUser,
                             ibcmdPassword: ibcmdPassword,
-                            maintenanceDb: params.PSQL_MAINTENANCE_DB.trim(),
                             username: dbUser,
                             password: dbPassword
                         ]
@@ -196,12 +164,8 @@ pipeline {
                     }
 
                     if (env.EFFECTIVE_DB_TOOL == 'psql') {
-                        if (!params.USE_CREDENTIALS) {
-                            runRestore('', '')
-                            return
-                        }
                         if (!params.CREDENTIALS_ID_DB?.trim()) {
-                            error 'CREDENTIALS_ID_DB is required when credentials are enabled'
+                            error 'CREDENTIALS_ID_DB is required for psql'
                         }
                         withCredentials([usernamePassword(credentialsId: params.CREDENTIALS_ID_DB, usernameVariable: 'DB_USER', passwordVariable: 'DB_PASSWORD')]) {
                             withEnv(["PGPASSWORD=${DB_PASSWORD}"]) {
@@ -216,15 +180,11 @@ pipeline {
                     }
 
                     withCredentials([usernamePassword(credentialsId: params.CREDENTIALS_ID_IBCMD, usernameVariable: 'IBCMD_USER', passwordVariable: 'IBCMD_PASSWORD')]) {
-                        if (params.USE_CREDENTIALS) {
-                            if (!params.CREDENTIALS_ID_DB?.trim()) {
-                                error 'CREDENTIALS_ID_DB is required when USE_CREDENTIALS=true'
-                            }
-                            withCredentials([usernamePassword(credentialsId: params.CREDENTIALS_ID_DB, usernameVariable: 'DB_USER', passwordVariable: 'DB_PASSWORD')]) {
-                                runRestore(DB_USER, DB_PASSWORD, IBCMD_USER, IBCMD_PASSWORD)
-                            }
-                        } else {
-                            runRestore('', '', IBCMD_USER, IBCMD_PASSWORD)
+                        if (!params.CREDENTIALS_ID_DB?.trim()) {
+                            error 'CREDENTIALS_ID_DB is required for ibcmd --db-user/--db-pwd'
+                        }
+                        withCredentials([usernamePassword(credentialsId: params.CREDENTIALS_ID_DB, usernameVariable: 'DB_USER', passwordVariable: 'DB_PASSWORD')]) {
+                            runRestore(DB_USER, DB_PASSWORD, IBCMD_USER, IBCMD_PASSWORD)
                         }
                     }
                 }

@@ -29,7 +29,7 @@ class PsqlService implements Serializable {
         def host = dbUtils.requireValue(options.server ?: options.host, "host")
         def database = dbUtils.requireValue(options.database ?: options.dbName, "database")
         def backupTarget = dbUtils.requireValue(options.backupTarget ?: options.backupPath, "backupTarget")
-        def maintenanceDb = dbUtils.optionalValue(options.maintenanceDb, "postgres")
+        def maintenanceDb = "postgres"
 
         if (!ctx.fileExists(backupTarget)) {
             ctx.error("Backup file not found: ${backupTarget}")

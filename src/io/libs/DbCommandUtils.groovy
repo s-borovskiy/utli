@@ -109,6 +109,36 @@ class DbCommandUtils implements Serializable {
         return "${normalized}${separator}${resolvedExecutable}"
     }
 
+    String resolveIbcmdDataDir(def rawDataDir, String ibcmdExecutablePath) {
+        def provided = rawDataDir == null ? "" : rawDataDir.toString().trim()
+        if (!provided.isEmpty()) {
+            if (provided.startsWith("\"") && provided.endsWith("\"") && provided.length() >= 2) {
+                provided = provided.substring(1, provided.length() - 1)
+            }
+            return provided.trim()
+        }
+
+        def executable = optionalValue(ibcmdExecutablePath, "ibcmd")
+        def normalized = executable.trim()
+        if (!ctx.isUnix()) {
+            normalized = normalized.replace("/", "\\")
+            def lower = normalized.toLowerCase()
+            if (lower.endsWith("\\ibcmd.exe")) {
+                return normalized.substring(0, normalized.length() - "\\ibcmd.exe".length())
+            }
+            if (lower.endsWith("\\ibcmd")) {
+                return normalized.substring(0, normalized.length() - "\\ibcmd".length())
+            }
+            return normalized
+        }
+
+        def unixLower = normalized.toLowerCase()
+        if (unixLower.endsWith("/ibcmd")) {
+            return normalized.substring(0, normalized.length() - "/ibcmd".length())
+        }
+        return normalized
+    }
+
     String logPath(String fileName) {
         def workspace = ctx.env("WORKSPACE")
         return workspace?.trim() ? "${workspace}\\${fileName}" : fileName

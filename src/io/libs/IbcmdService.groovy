@@ -16,8 +16,8 @@ class IbcmdService implements Serializable {
         def database = dbUtils.requireValue(options.database ?: options.dbName, "database")
         def backupTarget = dbUtils.requireValue(options.backupTarget ?: options.backupPath, "backupTarget")
         def dbms = dbUtils.normalizeIbcmdDbms(options.dbms ?: options.ibcmdDbms ?: options.databaseEngine)
-        def dataDir = dbUtils.requireValue(options.ibcmdDataDir ?: options.dataDir, "ibcmdDataDir")
         def ibcmdPath = dbUtils.normalizeExecutablePath(options.ibcmdPath, "ibcmd")
+        def dataDir = dbUtils.resolveIbcmdDataDir(options.ibcmdDataDir ?: options.dataDir, ibcmdPath)
         def ibcmdUser = options.ibcmdUser ?: options.infobaseUser
         def ibcmdPassword = options.ibcmdPassword ?: options.infobasePassword
         def dbServer = server
@@ -47,8 +47,8 @@ class IbcmdService implements Serializable {
         def database = dbUtils.requireValue(options.database ?: options.dbName, "database")
         def backupTarget = dbUtils.requireValue(options.backupTarget ?: options.backupPath, "backupTarget")
         def dbms = dbUtils.normalizeIbcmdDbms(options.dbms ?: options.ibcmdDbms ?: options.databaseEngine)
-        def dataDir = dbUtils.requireValue(options.ibcmdDataDir ?: options.dataDir, "ibcmdDataDir")
         def ibcmdPath = dbUtils.normalizeExecutablePath(options.ibcmdPath, "ibcmd")
+        def dataDir = dbUtils.resolveIbcmdDataDir(options.ibcmdDataDir ?: options.dataDir, ibcmdPath)
         def ibcmdUser = options.ibcmdUser ?: options.infobaseUser
         def ibcmdPassword = options.ibcmdPassword ?: options.infobasePassword
         def dbServer = server
