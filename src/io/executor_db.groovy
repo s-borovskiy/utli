@@ -12,7 +12,9 @@ pipeline {
         choice(name: 'DBMS', choices: ['MSSQLServer', 'PostgreSQL'], description: 'Database engine')
         choice(name: 'DB_TOOL', choices: ['auto', 'sqlcmd', 'psql', 'ibcmd'], description: 'DB client tool (auto maps DBMS -> sqlcmd/psql)')
         string(name: 'IBCMD_PATH', defaultValue: (params?.IBCMD_PATH ?: (env.IBCMD_PATH ?: 'ibcmd')), description: 'Path to ibcmd executable')
-        string(name: 'IBCMD_DATA_DIR', defaultValue: (params?.IBCMD_DATA_DIR ?: (env.IBCMD_DATA_DIR ?: 'C:\\temp\\ibcmd_data')), description: 'Temporary --data directory for ibcmd')
+        string(name: 'IBCMD_DATA_DIR', defaultValue: (params?.IBCMD_DATA_DIR ?: (env.IBCMD_DATA_DIR ?: 'C:\\temp\\ibcmd_data')), description: 'Value for ibcmd --data parameter (for example 1cv8\\bin path)')
+        string(name: 'IBCMD_USER', defaultValue: (params?.IBCMD_USER ?: (env.IBCMD_USER ?: 'Admin')), description: '1C user for ibcmd --user')
+        password(name: 'IBCMD_PASSWORD', defaultValue: (params?.IBCMD_PASSWORD ?: (env.IBCMD_PASSWORD ?: '')), description: '1C password for ibcmd --password')
         string(name: 'DB_HOST', defaultValue: (params?.DB_HOST ?: (env.DB_HOST ?: (env.server1c ?: 'localhost'))), description: 'DB host')
         string(name: 'DB_PORT', defaultValue: (params?.DB_PORT ?: (env.DB_PORT ?: '')), description: 'DB port (optional)')
         string(name: 'DB_NAME', defaultValue: (params?.DB_NAME ?: (env.DB_NAME ?: (env.database ?: 'Prosloyka'))), description: 'Source DB name for backup')
@@ -62,7 +64,7 @@ pipeline {
                     }
 
                     if (!params.DB_PORT?.trim()) {
-                        env.EFFECTIVE_DB_PORT = params.DBMS == 'MSSQLServer' ? '1433' : '5432'
+                        env.EFFECTIVE_DB_PORT = env.EFFECTIVE_DB_TOOL == 'ibcmd' ? '' : (params.DBMS == 'MSSQLServer' ? '1433' : '5432')
                     } else {
                         env.EFFECTIVE_DB_PORT = params.DB_PORT.trim()
                     }
@@ -81,6 +83,9 @@ pipeline {
                         }
                         if (!params.IBCMD_DATA_DIR?.trim()) {
                             error 'IBCMD_DATA_DIR is required for ibcmd'
+                        }
+                        if (!params.IBCMD_USER?.trim()) {
+                            error 'IBCMD_USER is required for ibcmd'
                         }
                         def mkdirDataCmd = "if not exist ${utils.escapeArg(params.IBCMD_DATA_DIR.trim())} mkdir ${utils.escapeArg(params.IBCMD_DATA_DIR.trim())}"
                         utils.shell.runOrError(mkdirDataCmd, 'Unable to create ibcmd data directory')
@@ -105,6 +110,8 @@ pipeline {
                             dbms: params.DBMS,
                             ibcmdPath: params.IBCMD_PATH.trim(),
                             ibcmdDataDir: params.IBCMD_DATA_DIR.trim(),
+                            ibcmdUser: params.IBCMD_USER.trim(),
+                            ibcmdPassword: params.IBCMD_PASSWORD ?: '',
                             maintenanceDb: params.PSQL_MAINTENANCE_DB.trim(),
                             username: dbUser,
                             password: dbPassword
@@ -152,6 +159,8 @@ pipeline {
                             dbms: params.DBMS,
                             ibcmdPath: params.IBCMD_PATH.trim(),
                             ibcmdDataDir: params.IBCMD_DATA_DIR.trim(),
+                            ibcmdUser: params.IBCMD_USER.trim(),
+                            ibcmdPassword: params.IBCMD_PASSWORD ?: '',
                             maintenanceDb: params.PSQL_MAINTENANCE_DB.trim(),
                             username: dbUser,
                             password: dbPassword
