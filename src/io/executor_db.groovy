@@ -186,7 +186,7 @@ pipeline {
             }
         }
 
-        stage('Ensure infobase before restore') {
+       /* stage('Ensure infobase before restore') {
             steps {
                 script {
                     def createDatabaseScriptPath = env.CREATE_DATABASE_OS_PATH?.trim()
@@ -221,7 +221,7 @@ pipeline {
                     }
                 }
             }
-        }
+        }*/
 
         stage('Restore to DB_TARGET') {
             steps {
