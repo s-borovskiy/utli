@@ -184,7 +184,7 @@ pipeline {
             }
         }
 
-        stage('Ensure infobase before restore') {
+        /*stage('Ensure infobase before restore') {
             steps {
                 script {
                     def workspacePath = env.WORKSPACE?.trim()
@@ -209,7 +209,7 @@ pipeline {
                     }
                 }
             }
-        }
+        }*/
 
         stage('Restore to DB_TARGET') {
             steps {
