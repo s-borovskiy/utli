@@ -53,15 +53,6 @@ class DbCommandUtils implements Serializable {
         return value
     }
 
-    String ibcmdServer(String server, def port, String dbms) {
-        def value = server.toString().trim()
-        if (port == null || port.toString().trim().isEmpty()) {
-            return value
-        }
-        def portValue = port.toString().trim()
-        return dbms == "PostgreSQL" ? "${value}:${portValue}" : "${value},${portValue}"
-    }
-
     String mssqlIdentifier(String value) {
         return "[" + value.toString().replace("]", "]]") + "]"
     }
@@ -82,7 +73,40 @@ class DbCommandUtils implements Serializable {
         if (value == null || value.toString().trim().isEmpty()) {
             return ""
         }
-        return "--${optionName}=${ctx.escapeArg(value.toString())} "
+        def safe = value.toString().trim()
+        if (!ctx.isUnix()) {
+            // cmd.exe treats % as variable expansion even inside quotes.
+            safe = safe.replace("%", "%%").replace("\"", "\"\"")
+            return "--${optionName}=\"${safe}\" "
+        }
+        return "--${optionName}=${ctx.escapeArg(safe)} "
+    }
+
+    String normalizeExecutablePath(def rawPath, String executableName) {
+        def path = optionalValue(rawPath, executableName)
+        if (path.startsWith("\"") && path.endsWith("\"") && path.length() >= 2) {
+            path = path.substring(1, path.length() - 1)
+        }
+
+        def normalized = path.trim()
+        if (!ctx.isUnix()) {
+            normalized = normalized.replace("/", "\\")
+        }
+        def lower = normalized.toLowerCase()
+        def exe = executableName.toLowerCase()
+        def resolvedExecutable = ctx.isUnix() ? executableName : "${executableName}.exe"
+
+        if (lower == exe || lower.endsWith("\\${exe}") || lower.endsWith("/${exe}")) {
+            return ctx.isUnix() ? normalized : "${normalized}.exe"
+        }
+        if (lower == "${exe}.exe" || lower.endsWith("\\${exe}.exe") || lower.endsWith("/${exe}.exe")) {
+            return normalized
+        }
+        if (normalized.endsWith("\\") || normalized.endsWith("/")) {
+            return "${normalized}${resolvedExecutable}"
+        }
+        def separator = ctx.isUnix() ? "/" : "\\"
+        return "${normalized}${separator}${resolvedExecutable}"
     }
 
     String logPath(String fileName) {

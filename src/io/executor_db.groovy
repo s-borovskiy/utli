@@ -15,7 +15,7 @@ pipeline {
         string(name: 'IBCMD_PATH', defaultValue: (params?.IBCMD_PATH ?: (env.IBCMD_PATH ?: 'ibcmd')), description: 'Path to ibcmd executable')
         string(name: 'IBCMD_DATA_DIR', defaultValue: (params?.IBCMD_DATA_DIR ?: (env.IBCMD_DATA_DIR ?: 'C:\\temp\\ibcmd_data')), description: 'Value for ibcmd --data parameter (for example 1cv8\\bin path)')
         string(name: 'DB_HOST', defaultValue: (params?.DB_HOST ?: (env.DB_HOST ?: (env.server1c ?: 'localhost'))), description: 'DB host')
-        string(name: 'DB_PORT', defaultValue: (params?.DB_PORT ?: (env.DB_PORT ?: '')), description: 'DB port (optional)')
+        string(name: 'DB_PORT', defaultValue: (params?.DB_PORT ?: (env.DB_PORT ?: '')), description: 'DB port for sqlcmd/psql (optional, ignored for ibcmd)')
         string(name: 'DB_NAME', defaultValue: (params?.DB_NAME ?: (env.DB_NAME ?: (env.database ?: 'Prosloyka'))), description: 'Source DB name for backup')
         string(name: 'DB_TARGET', defaultValue: (params?.DB_TARGET ?: (env.DB_TARGET ?: 'Prosloyka_copy')), description: 'Target DB name for restore')
 
@@ -61,8 +61,10 @@ pipeline {
                         error 'psql can be used only with DBMS=PostgreSQL'
                     }
 
-                    if (!params.DB_PORT?.trim()) {
-                        env.EFFECTIVE_DB_PORT = env.EFFECTIVE_DB_TOOL == 'ibcmd' ? '' : (params.DBMS == 'MSSQLServer' ? '1433' : '5432')
+                    if (env.EFFECTIVE_DB_TOOL == 'ibcmd') {
+                        env.EFFECTIVE_DB_PORT = ''
+                    } else if (!params.DB_PORT?.trim()) {
+                        env.EFFECTIVE_DB_PORT = params.DBMS == 'MSSQLServer' ? '1433' : '5432'
                     } else {
                         env.EFFECTIVE_DB_PORT = params.DB_PORT.trim()
                     }
@@ -102,7 +104,7 @@ pipeline {
                         def options = [
                             tool: env.EFFECTIVE_DB_TOOL,
                             host: params.DB_HOST.trim(),
-                            port: env.EFFECTIVE_DB_PORT,
+                            port: env.EFFECTIVE_DB_TOOL == 'ibcmd' ? '' : env.EFFECTIVE_DB_PORT,
                             database: params.DB_NAME.trim(),
                             backupTarget: env.BACKUP_FILE_PATH,
                             dbms: params.DBMS,
@@ -169,7 +171,7 @@ pipeline {
                         def options = [
                             tool: env.EFFECTIVE_DB_TOOL,
                             host: params.DB_HOST.trim(),
-                            port: env.EFFECTIVE_DB_PORT,
+                            port: env.EFFECTIVE_DB_TOOL == 'ibcmd' ? '' : env.EFFECTIVE_DB_PORT,
                             database: params.DB_TARGET.trim(),
                             backupTarget: env.BACKUP_FILE_PATH,
                             dbms: params.DBMS,

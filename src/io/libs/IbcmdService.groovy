@@ -17,10 +17,10 @@ class IbcmdService implements Serializable {
         def backupTarget = dbUtils.requireValue(options.backupTarget ?: options.backupPath, "backupTarget")
         def dbms = dbUtils.normalizeIbcmdDbms(options.dbms ?: options.ibcmdDbms ?: options.databaseEngine)
         def dataDir = dbUtils.requireValue(options.ibcmdDataDir ?: options.dataDir, "ibcmdDataDir")
-        def ibcmdPath = dbUtils.optionalValue(options.ibcmdPath, "ibcmd")
+        def ibcmdPath = dbUtils.normalizeExecutablePath(options.ibcmdPath, "ibcmd")
         def ibcmdUser = options.ibcmdUser ?: options.infobaseUser
         def ibcmdPassword = options.ibcmdPassword ?: options.infobasePassword
-        def dbServer = dbUtils.ibcmdServer(server, options.port, dbms)
+        def dbServer = server
 
         if (ctx.fileExists(backupTarget)) {
             ctx.echo("Backup already exists: ${backupTarget}")
@@ -48,10 +48,10 @@ class IbcmdService implements Serializable {
         def backupTarget = dbUtils.requireValue(options.backupTarget ?: options.backupPath, "backupTarget")
         def dbms = dbUtils.normalizeIbcmdDbms(options.dbms ?: options.ibcmdDbms ?: options.databaseEngine)
         def dataDir = dbUtils.requireValue(options.ibcmdDataDir ?: options.dataDir, "ibcmdDataDir")
-        def ibcmdPath = dbUtils.optionalValue(options.ibcmdPath, "ibcmd")
+        def ibcmdPath = dbUtils.normalizeExecutablePath(options.ibcmdPath, "ibcmd")
         def ibcmdUser = options.ibcmdUser ?: options.infobaseUser
         def ibcmdPassword = options.ibcmdPassword ?: options.infobasePassword
-        def dbServer = dbUtils.ibcmdServer(server, options.port, dbms)
+        def dbServer = server
 
         if (!ctx.fileExists(backupTarget)) {
             ctx.error("Backup file not found: ${backupTarget}")
