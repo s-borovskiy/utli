@@ -2,19 +2,21 @@ package io.libs
 
 class DB_method implements Serializable {
     PipelineContext ctx
+    DbCommandUtils dbUtils
     SqlcmdService sqlcmd
     PsqlService psql
     IbcmdService ibcmd
 
     DB_method(PipelineContext ctx) {
         this.ctx = ctx
+        this.dbUtils = new DbCommandUtils(ctx)
         this.sqlcmd = new SqlcmdService(ctx)
         this.psql = new PsqlService(ctx)
         this.ibcmd = new IbcmdService(ctx)
     }
 
     int backupDB(Map options = [:]) {
-        def tool = normalizeTool(options.tool ?: options.engine ?: options.client)
+        def tool = dbUtils.normalizeTool(options.tool ?: options.engine ?: options.client)
         if (tool == "sqlcmd") {
             return sqlcmd.backup(options)
         }
@@ -25,7 +27,7 @@ class DB_method implements Serializable {
     }
 
     int restoreDB(Map options = [:]) {
-        def tool = normalizeTool(options.tool ?: options.engine ?: options.client)
+        def tool = dbUtils.normalizeTool(options.tool ?: options.engine ?: options.client)
         if (tool == "sqlcmd") {
             return sqlcmd.restore(options)
         }
@@ -53,20 +55,5 @@ class DB_method implements Serializable {
             database: baseName,
             backupTarget: backupName
         ])
-    }
-
-    private String normalizeTool(def rawTool) {
-        def tool = rawTool == null ? "" : rawTool.toString().trim().toLowerCase()
-        if (tool in ["sqlcmd", "mssql", "sqlserver"]) {
-            return "sqlcmd"
-        }
-        if (tool in ["psql", "postgres", "postgresql"]) {
-            return "psql"
-        }
-        if (tool in ["ibcmd", "1c", "1c-ib"]) {
-            return "ibcmd"
-        }
-        ctx.error("Unsupported DB tool '${rawTool}'. Allowed values: sqlcmd, psql, ibcmd")
-        return ""
     }
 }

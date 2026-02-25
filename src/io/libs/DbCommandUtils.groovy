@@ -1,0 +1,92 @@
+package io.libs
+
+class DbCommandUtils implements Serializable {
+    PipelineContext ctx
+
+    DbCommandUtils(PipelineContext ctx) {
+        this.ctx = ctx
+    }
+
+    String requireValue(def value, String optionName) {
+        if (value == null || value.toString().trim().isEmpty()) {
+            ctx.error("Option '${optionName}' is required")
+        }
+        return value.toString().trim()
+    }
+
+    String optionalValue(def value, String defaultValue) {
+        return value == null || value.toString().trim().isEmpty() ? defaultValue : value.toString().trim()
+    }
+
+    String normalizeTool(def rawTool) {
+        def tool = rawTool == null ? "" : rawTool.toString().trim().toLowerCase()
+        if (tool in ["sqlcmd", "mssql", "sqlserver"]) {
+            return "sqlcmd"
+        }
+        if (tool in ["psql", "postgres", "postgresql"]) {
+            return "psql"
+        }
+        if (tool in ["ibcmd", "1c", "1c-ib"]) {
+            return "ibcmd"
+        }
+        ctx.error("Unsupported DB tool '${rawTool}'. Allowed values: sqlcmd, psql, ibcmd")
+        return ""
+    }
+
+    String normalizeIbcmdDbms(def rawDbms) {
+        def dbms = rawDbms == null ? "" : rawDbms.toString().trim().toLowerCase()
+        if (dbms in ["mssql", "mssqlserver", "sqlserver"]) {
+            return "MSSQLServer"
+        }
+        if (dbms in ["postgres", "postgresql", "pgsql"]) {
+            return "PostgreSQL"
+        }
+        ctx.error("Unsupported ibcmd DBMS '${rawDbms}'. Allowed values: MSSQLServer, PostgreSQL")
+        return ""
+    }
+
+    String sqlServerHost(String server, def port) {
+        def value = server.toString().trim()
+        if (port != null && !port.toString().trim().isEmpty()) {
+            return "${value},${port.toString().trim()}"
+        }
+        return value
+    }
+
+    String ibcmdServer(String server, def port, String dbms) {
+        def value = server.toString().trim()
+        if (port == null || port.toString().trim().isEmpty()) {
+            return value
+        }
+        def portValue = port.toString().trim()
+        return dbms == "PostgreSQL" ? "${value}:${portValue}" : "${value},${portValue}"
+    }
+
+    String mssqlIdentifier(String value) {
+        return "[" + value.toString().replace("]", "]]") + "]"
+    }
+
+    String mssqlString(String value) {
+        return "N'" + value.toString().replace("'", "''") + "'"
+    }
+
+    String pgsqlIdentifier(String value) {
+        return "\"" + value.toString().replace("\"", "\"\"") + "\""
+    }
+
+    String pgsqlString(String value) {
+        return "'" + value.toString().replace("'", "''") + "'"
+    }
+
+    String commandOption(String optionName, def value) {
+        if (value == null || value.toString().trim().isEmpty()) {
+            return ""
+        }
+        return "--${optionName}=${ctx.escapeArg(value.toString())} "
+    }
+
+    String logPath(String fileName) {
+        def workspace = ctx.env("WORKSPACE")
+        return workspace?.trim() ? "${workspace}\\${fileName}" : fileName
+    }
+}

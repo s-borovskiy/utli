@@ -8,13 +8,12 @@ pipeline {
     parameters {
         booleanParam(name: 'ECHO_OFF', defaultValue: true, description: 'Disable command echo in Windows bat')
         string(name: 'CREDENTIALS_ID_DB', defaultValue: (params?.CREDENTIALS_ID_DB ?: (env.CREDENTIALS_ID_DB ?: 'CREDENTIALS_ID_DB')), description: 'Credentials ID for DB auth')
+        string(name: 'CREDENTIALS_ID_IBCMD', defaultValue: (params?.CREDENTIALS_ID_IBCMD ?: (env.CREDENTIALS_ID_IBCMD ?: (params?.CREDENTIALS_ID_DB ?: (env.CREDENTIALS_ID_DB ?: 'CREDENTIALS_ID_DB')))), description: 'Credentials ID for ibcmd --user/--password')
 
         choice(name: 'DBMS', choices: ['MSSQLServer', 'PostgreSQL'], description: 'Database engine')
         choice(name: 'DB_TOOL', choices: ['auto', 'sqlcmd', 'psql', 'ibcmd'], description: 'DB client tool (auto maps DBMS -> sqlcmd/psql)')
         string(name: 'IBCMD_PATH', defaultValue: (params?.IBCMD_PATH ?: (env.IBCMD_PATH ?: 'ibcmd')), description: 'Path to ibcmd executable')
         string(name: 'IBCMD_DATA_DIR', defaultValue: (params?.IBCMD_DATA_DIR ?: (env.IBCMD_DATA_DIR ?: 'C:\\temp\\ibcmd_data')), description: 'Value for ibcmd --data parameter (for example 1cv8\\bin path)')
-        string(name: 'IBCMD_USER', defaultValue: (params?.IBCMD_USER ?: (env.IBCMD_USER ?: 'Admin')), description: '1C user for ibcmd --user')
-        password(name: 'IBCMD_PASSWORD', defaultValue: (params?.IBCMD_PASSWORD ?: (env.IBCMD_PASSWORD ?: '')), description: '1C password for ibcmd --password')
         string(name: 'DB_HOST', defaultValue: (params?.DB_HOST ?: (env.DB_HOST ?: (env.server1c ?: 'localhost'))), description: 'DB host')
         string(name: 'DB_PORT', defaultValue: (params?.DB_PORT ?: (env.DB_PORT ?: '')), description: 'DB port (optional)')
         string(name: 'DB_NAME', defaultValue: (params?.DB_NAME ?: (env.DB_NAME ?: (env.database ?: 'Prosloyka'))), description: 'Source DB name for backup')
@@ -23,8 +22,7 @@ pipeline {
         string(name: 'BACKUP_DIR', defaultValue: (params?.BACKUP_DIR ?: (env.BACKUP_DIR ?: 'C:\\temp\\db_backups')), description: 'Folder where backup file will be stored')
         string(name: 'BACKUP_NAME', defaultValue: (params?.BACKUP_NAME ?: (env.BACKUP_NAME ?: 'db_backup')), description: 'Backup file prefix (without extension)')
 
-        booleanParam(name: 'SQLCMD_INTEGRATED_AUTH', defaultValue: (params?.SQLCMD_INTEGRATED_AUTH != null ? params.SQLCMD_INTEGRATED_AUTH : (env.SQLCMD_INTEGRATED_AUTH != null ? env.SQLCMD_INTEGRATED_AUTH.toBoolean() : true)), description: 'Use -E for sqlcmd')
-        booleanParam(name: 'USE_CREDENTIALS', defaultValue: (params?.USE_CREDENTIALS != null ? params.USE_CREDENTIALS : (env.USE_CREDENTIALS != null ? env.USE_CREDENTIALS.toBoolean() : true)), description: 'Use Jenkins DB credentials (mainly for psql/ibcmd)')
+        booleanParam(name: 'USE_CREDENTIALS', defaultValue: (params?.USE_CREDENTIALS != null ? params.USE_CREDENTIALS : (env.USE_CREDENTIALS != null ? env.USE_CREDENTIALS.toBoolean() : true)), description: 'Use Jenkins DB credentials for psql and ibcmd --db-user/--db-pwd')
         string(name: 'PSQL_MAINTENANCE_DB', defaultValue: (params?.PSQL_MAINTENANCE_DB ?: (env.PSQL_MAINTENANCE_DB ?: 'postgres')), description: 'Maintenance database for psql DROP/CREATE DATABASE')
     }
 
@@ -84,8 +82,8 @@ pipeline {
                         if (!params.IBCMD_DATA_DIR?.trim()) {
                             error 'IBCMD_DATA_DIR is required for ibcmd'
                         }
-                        if (!params.IBCMD_USER?.trim()) {
-                            error 'IBCMD_USER is required for ibcmd'
+                        if (!params.CREDENTIALS_ID_IBCMD?.trim()) {
+                            error 'CREDENTIALS_ID_IBCMD is required for ibcmd'
                         }
                         def mkdirDataCmd = "if not exist ${utils.escapeArg(params.IBCMD_DATA_DIR.trim())} mkdir ${utils.escapeArg(params.IBCMD_DATA_DIR.trim())}"
                         utils.shell.runOrError(mkdirDataCmd, 'Unable to create ibcmd data directory')
@@ -100,7 +98,7 @@ pipeline {
         stage('Backup DB_NAME') {
             steps {
                 script {
-                    def runBackup = { String dbUser = '', String dbPassword = '' ->
+                    def runBackup = { String dbUser = '', String dbPassword = '', String ibcmdUser = '', String ibcmdPassword = '' ->
                         def options = [
                             tool: env.EFFECTIVE_DB_TOOL,
                             host: params.DB_HOST.trim(),
@@ -110,8 +108,8 @@ pipeline {
                             dbms: params.DBMS,
                             ibcmdPath: params.IBCMD_PATH.trim(),
                             ibcmdDataDir: params.IBCMD_DATA_DIR.trim(),
-                            ibcmdUser: params.IBCMD_USER.trim(),
-                            ibcmdPassword: params.IBCMD_PASSWORD ?: '',
+                            ibcmdUser: ibcmdUser,
+                            ibcmdPassword: ibcmdPassword,
                             maintenanceDb: params.PSQL_MAINTENANCE_DB.trim(),
                             username: dbUser,
                             password: dbPassword
@@ -123,23 +121,41 @@ pipeline {
                         }
                     }
 
-                    def credentialsRequired = env.EFFECTIVE_DB_TOOL == 'sqlcmd' ? !params.SQLCMD_INTEGRATED_AUTH : params.USE_CREDENTIALS
-                    if (!credentialsRequired) {
+                    if (env.EFFECTIVE_DB_TOOL == 'sqlcmd') {
                         runBackup('', '')
                         return
                     }
 
-                    if (!params.CREDENTIALS_ID_DB?.trim()) {
-                        error 'CREDENTIALS_ID_DB is required when credentials are enabled'
+                    if (env.EFFECTIVE_DB_TOOL == 'psql') {
+                        if (!params.USE_CREDENTIALS) {
+                            runBackup('', '')
+                            return
+                        }
+                        if (!params.CREDENTIALS_ID_DB?.trim()) {
+                            error 'CREDENTIALS_ID_DB is required when credentials are enabled'
+                        }
+                        withCredentials([usernamePassword(credentialsId: params.CREDENTIALS_ID_DB, usernameVariable: 'DB_USER', passwordVariable: 'DB_PASSWORD')]) {
+                            withEnv(["PGPASSWORD=${DB_PASSWORD}"]) {
+                                runBackup(DB_USER, DB_PASSWORD, '', '')
+                            }
+                        }
+                        return
                     }
 
-                    withCredentials([usernamePassword(credentialsId: params.CREDENTIALS_ID_DB, usernameVariable: 'DB_USER', passwordVariable: 'DB_PASSWORD')]) {
-                        if (env.EFFECTIVE_DB_TOOL == 'psql') {
-                            withEnv(["PGPASSWORD=${DB_PASSWORD}"]) {
-                                runBackup(DB_USER, DB_PASSWORD)
+                    if (!params.CREDENTIALS_ID_IBCMD?.trim()) {
+                        error 'CREDENTIALS_ID_IBCMD is required for ibcmd'
+                    }
+
+                    withCredentials([usernamePassword(credentialsId: params.CREDENTIALS_ID_IBCMD, usernameVariable: 'IBCMD_USER', passwordVariable: 'IBCMD_PASSWORD')]) {
+                        if (params.USE_CREDENTIALS) {
+                            if (!params.CREDENTIALS_ID_DB?.trim()) {
+                                error 'CREDENTIALS_ID_DB is required when USE_CREDENTIALS=true'
+                            }
+                            withCredentials([usernamePassword(credentialsId: params.CREDENTIALS_ID_DB, usernameVariable: 'DB_USER', passwordVariable: 'DB_PASSWORD')]) {
+                                runBackup(DB_USER, DB_PASSWORD, IBCMD_USER, IBCMD_PASSWORD)
                             }
                         } else {
-                            runBackup(DB_USER, DB_PASSWORD)
+                            runBackup('', '', IBCMD_USER, IBCMD_PASSWORD)
                         }
                     }
                 }
@@ -149,7 +165,7 @@ pipeline {
         stage('Restore to DB_TARGET') {
             steps {
                 script {
-                    def runRestore = { String dbUser = '', String dbPassword = '' ->
+                    def runRestore = { String dbUser = '', String dbPassword = '', String ibcmdUser = '', String ibcmdPassword = '' ->
                         def options = [
                             tool: env.EFFECTIVE_DB_TOOL,
                             host: params.DB_HOST.trim(),
@@ -159,8 +175,8 @@ pipeline {
                             dbms: params.DBMS,
                             ibcmdPath: params.IBCMD_PATH.trim(),
                             ibcmdDataDir: params.IBCMD_DATA_DIR.trim(),
-                            ibcmdUser: params.IBCMD_USER.trim(),
-                            ibcmdPassword: params.IBCMD_PASSWORD ?: '',
+                            ibcmdUser: ibcmdUser,
+                            ibcmdPassword: ibcmdPassword,
                             maintenanceDb: params.PSQL_MAINTENANCE_DB.trim(),
                             username: dbUser,
                             password: dbPassword
@@ -172,23 +188,41 @@ pipeline {
                         }
                     }
 
-                    def credentialsRequired = env.EFFECTIVE_DB_TOOL == 'sqlcmd' ? !params.SQLCMD_INTEGRATED_AUTH : params.USE_CREDENTIALS
-                    if (!credentialsRequired) {
+                    if (env.EFFECTIVE_DB_TOOL == 'sqlcmd') {
                         runRestore('', '')
                         return
                     }
 
-                    if (!params.CREDENTIALS_ID_DB?.trim()) {
-                        error 'CREDENTIALS_ID_DB is required when credentials are enabled'
+                    if (env.EFFECTIVE_DB_TOOL == 'psql') {
+                        if (!params.USE_CREDENTIALS) {
+                            runRestore('', '')
+                            return
+                        }
+                        if (!params.CREDENTIALS_ID_DB?.trim()) {
+                            error 'CREDENTIALS_ID_DB is required when credentials are enabled'
+                        }
+                        withCredentials([usernamePassword(credentialsId: params.CREDENTIALS_ID_DB, usernameVariable: 'DB_USER', passwordVariable: 'DB_PASSWORD')]) {
+                            withEnv(["PGPASSWORD=${DB_PASSWORD}"]) {
+                                runRestore(DB_USER, DB_PASSWORD, '', '')
+                            }
+                        }
+                        return
                     }
 
-                    withCredentials([usernamePassword(credentialsId: params.CREDENTIALS_ID_DB, usernameVariable: 'DB_USER', passwordVariable: 'DB_PASSWORD')]) {
-                        if (env.EFFECTIVE_DB_TOOL == 'psql') {
-                            withEnv(["PGPASSWORD=${DB_PASSWORD}"]) {
-                                runRestore(DB_USER, DB_PASSWORD)
+                    if (!params.CREDENTIALS_ID_IBCMD?.trim()) {
+                        error 'CREDENTIALS_ID_IBCMD is required for ibcmd'
+                    }
+
+                    withCredentials([usernamePassword(credentialsId: params.CREDENTIALS_ID_IBCMD, usernameVariable: 'IBCMD_USER', passwordVariable: 'IBCMD_PASSWORD')]) {
+                        if (params.USE_CREDENTIALS) {
+                            if (!params.CREDENTIALS_ID_DB?.trim()) {
+                                error 'CREDENTIALS_ID_DB is required when USE_CREDENTIALS=true'
+                            }
+                            withCredentials([usernamePassword(credentialsId: params.CREDENTIALS_ID_DB, usernameVariable: 'DB_USER', passwordVariable: 'DB_PASSWORD')]) {
+                                runRestore(DB_USER, DB_PASSWORD, IBCMD_USER, IBCMD_PASSWORD)
                             }
                         } else {
-                            runRestore(DB_USER, DB_PASSWORD)
+                            runRestore('', '', IBCMD_USER, IBCMD_PASSWORD)
                         }
                     }
                 }

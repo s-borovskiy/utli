@@ -2,40 +2,42 @@ package io.libs
 
 class SqlcmdService implements Serializable {
     PipelineContext ctx
+    DbCommandUtils dbUtils
     CommandRunner runner
 
     SqlcmdService(PipelineContext ctx) {
         this.ctx = ctx
+        this.dbUtils = new DbCommandUtils(ctx)
         this.runner = new CommandRunner(ctx)
     }
 
     int backup(Map options = [:]) {
-        def server = requireValue(options.server ?: options.host, "server")
-        def database = requireValue(options.database ?: options.dbName, "database")
-        def backupTarget = requireValue(options.backupTarget ?: options.backupPath, "backupTarget")
+        def server = dbUtils.requireValue(options.server ?: options.host, "server")
+        def database = dbUtils.requireValue(options.database ?: options.dbName, "database")
+        def backupTarget = dbUtils.requireValue(options.backupTarget ?: options.backupPath, "backupTarget")
 
         if (ctx.fileExists(backupTarget)) {
             ctx.echo("Backup already exists: ${backupTarget}")
             return 1
         }
 
-        def sql = "BACKUP DATABASE ${mssqlIdentifier(database)} TO DISK = ${mssqlString(backupTarget)} " +
+        def sql = "BACKUP DATABASE ${dbUtils.mssqlIdentifier(database)} TO DISK = ${dbUtils.mssqlString(backupTarget)} " +
             "WITH COPY_ONLY, INIT, COMPRESSION, STATS = 10;"
 
-        def command = "sqlcmd -S ${ctx.escapeArg(sqlServerHost(server, options.port))} " +
-            "${sqlcmdAuthArgs(options.username, options.password)} -b -Q ${ctx.escapeArg(sql)} " +
-            "-o ${ctx.escapeArg(logPath())}"
+        def command = "sqlcmd -S ${ctx.escapeArg(dbUtils.sqlServerHost(server, options.port))} " +
+            "-E -b -Q ${ctx.escapeArg(sql)} " +
+            "-o ${ctx.escapeArg(dbUtils.logPath('sqlcmd_log.txt'))}"
 
         return runner.run(command)
     }
 
     int restore(Map options = [:]) {
-        def server = requireValue(options.server ?: options.host, "server")
-        def database = requireValue(options.database ?: options.dbName, "database")
-        def backupTarget = requireValue(options.backupTarget ?: options.backupPath, "backupTarget")
+        def server = dbUtils.requireValue(options.server ?: options.host, "server")
+        def database = dbUtils.requireValue(options.database ?: options.dbName, "database")
+        def backupTarget = dbUtils.requireValue(options.backupTarget ?: options.backupPath, "backupTarget")
 
-        def dbLiteral = mssqlString(database)
-        def backupLiteral = mssqlString(backupTarget)
+        def dbLiteral = dbUtils.mssqlString(database)
+        def backupLiteral = dbUtils.mssqlString(backupTarget)
         def sql = "USE master;" +
             "DECLARE @db nvarchar(128) = ${dbLiteral};" +
             "DECLARE @back_file nvarchar(4000) = ${backupLiteral};" +
@@ -89,47 +91,10 @@ class SqlcmdService implements Serializable {
             "MOVE N''' + REPLACE(@logicalLogFile, '''', '''''') + N''' TO N''' + REPLACE(@ldf, '''', '''''') + N''', REPLACE, STATS = 10;';" +
             "EXEC(@restoreSql);"
 
-        def command = "sqlcmd -S ${ctx.escapeArg(sqlServerHost(server, options.port))} " +
-            "${sqlcmdAuthArgs(options.username, options.password)} -b -Q ${ctx.escapeArg(sql)} " +
-            "-o ${ctx.escapeArg(logPath())}"
+        def command = "sqlcmd -S ${ctx.escapeArg(dbUtils.sqlServerHost(server, options.port))} " +
+            "-E -b -Q ${ctx.escapeArg(sql)} " +
+            "-o ${ctx.escapeArg(dbUtils.logPath('sqlcmd_log.txt'))}"
 
         return runner.run(command)
-    }
-
-    private String sqlcmdAuthArgs(def username, def password) {
-        if (username == null || username.toString().trim().isEmpty()) {
-            return "-E"
-        }
-        def user = username.toString()
-        def pass = password == null ? "" : password.toString()
-        return "-U ${ctx.escapeArg(user)} -P ${ctx.escapeArg(pass)}"
-    }
-
-    private String sqlServerHost(String server, def port) {
-        def value = server.toString().trim()
-        if (port != null && !port.toString().trim().isEmpty()) {
-            return "${value},${port.toString().trim()}"
-        }
-        return value
-    }
-
-    private String requireValue(def value, String optionName) {
-        if (value == null || value.toString().trim().isEmpty()) {
-            ctx.error("Option '${optionName}' is required")
-        }
-        return value.toString().trim()
-    }
-
-    private String mssqlIdentifier(String value) {
-        return "[" + value.toString().replace("]", "]]") + "]"
-    }
-
-    private String mssqlString(String value) {
-        return "N'" + value.toString().replace("'", "''") + "'"
-    }
-
-    private String logPath() {
-        def workspace = ctx.env("WORKSPACE")
-        return workspace?.trim() ? "${workspace}\\sqlcmd_log.txt" : "sqlcmd_log.txt"
     }
 }
