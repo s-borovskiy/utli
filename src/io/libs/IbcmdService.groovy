@@ -17,7 +17,6 @@ class IbcmdService implements Serializable {
         def backupTarget = dbUtils.requireValue(options.backupTarget ?: options.backupPath, "backupTarget")
         def dbms = dbUtils.normalizeIbcmdDbms(options.dbms ?: options.ibcmdDbms ?: options.databaseEngine)
         def ibcmdPath = dbUtils.normalizeExecutablePath(options.ibcmdPath, "ibcmd")
-        def dataDir = dbUtils.resolveIbcmdDataDir(options.ibcmdDataDir ?: options.dataDir, ibcmdPath)
         def ibcmdUser = options.ibcmdUser ?: options.infobaseUser
         def ibcmdPassword = options.ibcmdPassword ?: options.infobasePassword
         def dbServer = server
@@ -35,7 +34,7 @@ class IbcmdService implements Serializable {
             dbUtils.commandOption("user", ibcmdUser) +
             dbUtils.commandOption("password", ibcmdPassword) +
             "--db-name=${ctx.escapeArg(database)} " +
-            "--data=${ctx.escapeArg(dataDir)} " +
+            "--data=${ctx.escapeArg(backupTarget)} " +
             "${ctx.escapeArg(backupTarget)} " +
             "> ${ctx.escapeArg(dbUtils.logPath('ibcmd_log.txt'))} 2>&1"
 
