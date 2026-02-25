@@ -14,8 +14,8 @@ pipeline {
         choice(name: 'DB_TOOL', choices: ['auto', 'sqlcmd', 'psql', 'ibcmd'], description: 'Инструмент для работы с БД (auto: MSSQLServer -> sqlcmd, PostgreSQL -> psql)')
         string(name: 'IBCMD_PATH', defaultValue: (params?.IBCMD_PATH ?: (env.IBCMD_PATH ?: 'ibcmd')), description: 'Путь к исполняемому файлу ibcmd')
         string(name: 'DB_HOST', defaultValue: (params?.DB_HOST ?: (env.DB_HOST ?: (env.server1c ?: 'localhost'))), description: 'Адрес сервера СУБД')
-        string(name: 'RAS_HOST', defaultValue: (params?.RAS_HOST ?: (env.RAS_HOST ?: (env.server1c ?: 'localhost'))), description: 'Адрес RAS-сервера для скрипта create_infobase_if_absent')
-        string(name: 'RAS_PORT', defaultValue: (params?.RAS_PORT ?: (env.RAS_PORT ?: '1545')), description: 'Порт RAS-сервера для скрипта create_infobase_if_absent')
+        string(name: 'RAS_HOST', defaultValue: (params?.RAS_HOST ?: (env.RAS_HOST ?: (env.server1c ?: 'localhost'))), description: 'Адрес RAS-сервера для скрипта createDatabase.os')
+        string(name: 'RAS_PORT', defaultValue: (params?.RAS_PORT ?: (env.RAS_PORT ?: '1545')), description: 'Порт RAS-сервера для скрипта createDatabase.os')
         string(name: 'DB_NAME', defaultValue: (params?.DB_NAME ?: (env.DB_NAME ?: (env.database ?: 'Prosloyka'))), description: 'Имя исходной базы для создания резервной копии')
         string(name: 'DB_TARGET', defaultValue: (params?.DB_TARGET ?: (env.DB_TARGET ?: 'Prosloyka_copy')), description: 'Имя целевой базы для восстановления')
 
@@ -102,23 +102,25 @@ pipeline {
                     if (!workspacePath) {
                         error 'WORKSPACE is not defined'
                     }
-                    def executorDirCandidates = [
-                        "${workspacePath}\\src\\io\\executor",
-                        "${workspacePath}\\executor"
+                    def createDatabaseScriptCandidates = [
+                        "${workspacePath}\\src\\io\\libs\\createDatabase.os",
+                        "${workspacePath}\\libs\\createDatabase.os",
+                        "${workspacePath}\\src\\os\\createDatabase.os"
                     ]
-                    def resolvedExecutorDir = ''
-                    for (String candidate in executorDirCandidates) {
-                        def candidateCmd = "${candidate}\\executor.cmd"
-                        def candidateScript = "${candidate}\\create_infobase_if_absent.sbsl"
-                        if (fileExists(candidateCmd) && fileExists(candidateScript)) {
-                            resolvedExecutorDir = candidate
+                    def resolvedCreateDatabaseScriptPath = ''
+                    for (String candidate in createDatabaseScriptCandidates) {
+                        if (fileExists(candidate)) {
+                            resolvedCreateDatabaseScriptPath = candidate
                             break
                         }
                     }
-                    if (!resolvedExecutorDir) {
-                        error "Executor files not found. Checked: ${executorDirCandidates.join(', ')}"
+                    if (!resolvedCreateDatabaseScriptPath) {
+                        error "createDatabase.os not found. Checked: ${createDatabaseScriptCandidates.join(', ')}"
                     }
-                    env.EXECUTOR_DIR = resolvedExecutorDir
+                    if (!params.CREDENTIALS_ID_DB?.trim()) {
+                        error 'CREDENTIALS_ID_DB is required to create infobase before restore'
+                    }
+                    env.CREATE_DATABASE_OS_PATH = resolvedCreateDatabaseScriptPath
 
                     writeFile(file: 'backup_path.txt', text: env.BACKUP_FILE_PATH + "\r\n")
                     echo "Backup path: ${env.BACKUP_FILE_PATH}"
@@ -184,32 +186,41 @@ pipeline {
             }
         }
 
-        /*stage('Ensure infobase before restore') {
+        stage('Ensure infobase before restore') {
             steps {
                 script {
-                    def workspacePath = env.WORKSPACE?.trim()
-                    def executorDir = env.EXECUTOR_DIR?.trim() ? env.EXECUTOR_DIR.trim() : "${workspacePath}\\src\\io\\executor"
-                    def executorCmdPath = "${executorDir}\\executor.cmd"
-                    def createInfobaseScriptPath = "${executorDir}\\create_infobase_if_absent.sbsl"
-                    def createInfobaseLogPath = "${workspacePath}\\create_infobase_if_absent_log.txt"
+                    def createDatabaseScriptPath = env.CREATE_DATABASE_OS_PATH?.trim()
+                    if (!createDatabaseScriptPath) {
+                        error 'Path to createDatabase.os is not resolved'
+                    }
+                    def rasEndpoint = "${params.RAS_HOST.trim()}:${params.RAS_PORT.trim()}"
+                    def descriptionBase = ''
+                    try {
+                        def userCause = currentBuild?.rawBuild?.getCauses()?.find { it?.class?.name == 'hudson.model.Cause$UserIdCause' }
+                        descriptionBase = userCause?.userName ?: ''
+                    } catch (ignored) {
+                        descriptionBase = ''
+                    }
+                    def createInfobaseLogPath = "${env.WORKSPACE}\\create_infobase_if_absent_log.txt"
 
-                    def command = "${utils.escapeArg(executorCmdPath)} -l ru " +
-                        "${utils.escapeArg(createInfobaseScriptPath)} " +
-                        "${utils.escapeArg(params.DB_TARGET.trim())} " +
-                        "${utils.escapeArg(params.DB_HOST.trim())} " +
-                        "${utils.escapeArg(params.RAS_HOST.trim())} " +
-                        "${utils.escapeArg(params.RAS_PORT.trim())} " +
-                        "${utils.escapeArg(params.DBMS)} " +
-                        "${utils.escapeArg(params.DB_TARGET.trim())} " +
-                        "> ${utils.escapeArg(createInfobaseLogPath)} 2>&1"
-
-                    int returnCode = utils.cmd(command)
-                    if (returnCode != 0) {
-                        error "Unable to ensure infobase before restore. Check create_infobase_if_absent_log.txt in workspace."
+                    withCredentials([usernamePassword(credentialsId: params.CREDENTIALS_ID_DB, usernameVariable: 'DB_ADMIN_USER', passwordVariable: 'DB_ADMIN_PASSWORD')]) {
+                        def command = "oscript ${utils.escapeArg(createDatabaseScriptPath)} " +
+                            "${utils.escapeArg(rasEndpoint)} " +
+                            "${utils.escapeArg(params.DB_TARGET.trim())} " +
+                            "${utils.escapeArg(params.DB_HOST.trim())} " +
+                            "${utils.escapeArg(DB_ADMIN_USER)} " +
+                            "${utils.escapeArg(DB_ADMIN_PASSWORD)} " +
+                            "${utils.escapeArg(descriptionBase)} " +
+                            "> ${utils.escapeArg(createInfobaseLogPath)} 2>&1"
+                        int returnCode = utils.cmd(command)
+                        if (returnCode != 0) {
+                            echo "Код возврата: ${returnCode.toString()}"
+                            error 'Не удалось создать информационную базу на сервере 1С. Подробности: create_infobase_if_absent_log.txt'
+                        }
                     }
                 }
             }
-        }*/
+        }
 
         stage('Restore to DB_TARGET') {
             steps {
