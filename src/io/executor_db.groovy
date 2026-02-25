@@ -14,11 +14,16 @@ pipeline {
         choice(name: 'DB_TOOL', choices: ['auto', 'sqlcmd', 'psql', 'ibcmd'], description: 'DB client tool (auto maps DBMS -> sqlcmd/psql)')
         string(name: 'IBCMD_PATH', defaultValue: (params?.IBCMD_PATH ?: (env.IBCMD_PATH ?: 'ibcmd')), description: 'Path to ibcmd executable')
         string(name: 'DB_HOST', defaultValue: (params?.DB_HOST ?: (env.DB_HOST ?: (env.server1c ?: 'localhost'))), description: 'DB host')
+        string(name: 'RAS_HOST', defaultValue: (params?.RAS_HOST ?: (env.RAS_HOST ?: (env.server1c ?: 'localhost'))), description: 'RAS host for create_infobase_if_absent script')
+        string(name: 'RAS_PORT', defaultValue: (params?.RAS_PORT ?: (env.RAS_PORT ?: '1545')), description: 'RAS port for create_infobase_if_absent script')
         string(name: 'DB_NAME', defaultValue: (params?.DB_NAME ?: (env.DB_NAME ?: (env.database ?: 'Prosloyka'))), description: 'Source DB name for backup')
         string(name: 'DB_TARGET', defaultValue: (params?.DB_TARGET ?: (env.DB_TARGET ?: 'Prosloyka_copy')), description: 'Target DB name for restore')
 
         string(name: 'BACKUP_DIR', defaultValue: (params?.BACKUP_DIR ?: (env.BACKUP_DIR ?: 'C:\\temp\\db_backups')), description: 'Folder where backup file will be stored')
         string(name: 'BACKUP_NAME', defaultValue: (params?.BACKUP_NAME ?: (env.BACKUP_NAME ?: 'db_backup')), description: 'Backup file prefix (without extension)')
+        choice(name: 'POST_RESTORE_TOOL', choices: ['skip', 'auto', 'sqlcmd', 'psql'], description: 'Tool for optional post-restore SQL execution')
+        string(name: 'POST_RESTORE_SQL_FILE', defaultValue: (params?.POST_RESTORE_SQL_FILE ?: (env.POST_RESTORE_SQL_FILE ?: '')), description: 'Optional path to SQL file executed after restore')
+        text(name: 'POST_RESTORE_SQL_TEXT', defaultValue: (params?.POST_RESTORE_SQL_TEXT ?: (env.POST_RESTORE_SQL_TEXT ?: '')), description: 'Optional inline SQL executed after restore')
     }
 
     agent { label 'localhost' }
@@ -32,6 +37,15 @@ pipeline {
                     }
                     if (!params.DB_NAME?.trim()) {
                         error 'DB_NAME is required'
+                    }
+                    if (!params.RAS_HOST?.trim()) {
+                        error 'RAS_HOST is required'
+                    }
+                    if (!params.RAS_PORT?.trim()) {
+                        error 'RAS_PORT is required'
+                    }
+                    if (!(params.RAS_PORT.trim() ==~ /^\d+$/)) {
+                        error 'RAS_PORT must be numeric'
                     }
                     if (!params.DB_TARGET?.trim()) {
                         error 'DB_TARGET is required'
@@ -71,6 +85,30 @@ pipeline {
                         if (!params.CREDENTIALS_ID_IBCMD?.trim()) {
                             error 'CREDENTIALS_ID_IBCMD is required for ibcmd'
                         }
+                    }
+
+                    def postRestoreTool = params.POST_RESTORE_TOOL?.trim()?.toLowerCase()
+                    if (!(postRestoreTool in ['skip', 'auto', 'sqlcmd', 'psql'])) {
+                        error "Unsupported POST_RESTORE_TOOL '${params.POST_RESTORE_TOOL}'. Allowed values: skip, auto, sqlcmd, psql"
+                    }
+                    if (postRestoreTool == 'sqlcmd' && params.DBMS != 'MSSQLServer') {
+                        error 'POST_RESTORE_TOOL=sqlcmd can be used only with DBMS=MSSQLServer'
+                    }
+                    if (postRestoreTool == 'psql' && params.DBMS != 'PostgreSQL') {
+                        error 'POST_RESTORE_TOOL=psql can be used only with DBMS=PostgreSQL'
+                    }
+
+                    def workspacePath = env.WORKSPACE?.trim()
+                    if (!workspacePath) {
+                        error 'WORKSPACE is not defined'
+                    }
+                    def executorCmdPath = "${workspacePath}\\executor\\executor.cmd"
+                    def createInfobaseScriptPath = "${workspacePath}\\executor\\create_infobase_if_absent.sbsl"
+                    if (!fileExists(executorCmdPath)) {
+                        error "Required file not found: ${executorCmdPath}"
+                    }
+                    if (!fileExists(createInfobaseScriptPath)) {
+                        error "Required file not found: ${createInfobaseScriptPath}"
                     }
 
                     writeFile(file: 'backup_path.txt', text: env.BACKUP_FILE_PATH + "\r\n")
@@ -137,6 +175,32 @@ pipeline {
             }
         }
 
+        stage('Ensure infobase before restore') {
+            steps {
+                script {
+                    def workspacePath = env.WORKSPACE?.trim()
+                    def executorCmdPath = "${workspacePath}\\executor\\executor.cmd"
+                    def createInfobaseScriptPath = "${workspacePath}\\executor\\create_infobase_if_absent.sbsl"
+                    def createInfobaseLogPath = "${workspacePath}\\create_infobase_if_absent_log.txt"
+
+                    def command = "${utils.escapeArg(executorCmdPath)} -l ru " +
+                        "${utils.escapeArg(createInfobaseScriptPath)} " +
+                        "${utils.escapeArg(params.DB_TARGET.trim())} " +
+                        "${utils.escapeArg(params.DB_HOST.trim())} " +
+                        "${utils.escapeArg(params.RAS_HOST.trim())} " +
+                        "${utils.escapeArg(params.RAS_PORT.trim())} " +
+                        "${utils.escapeArg(params.DBMS)} " +
+                        "${utils.escapeArg(params.DB_TARGET.trim())} " +
+                        "> ${utils.escapeArg(createInfobaseLogPath)} 2>&1"
+
+                    int returnCode = utils.cmd(command)
+                    if (returnCode != 0) {
+                        error "Unable to ensure infobase before restore. Check create_infobase_if_absent_log.txt in workspace."
+                    }
+                }
+            }
+        }
+
         stage('Restore to DB_TARGET') {
             steps {
                 script {
@@ -189,6 +253,83 @@ pipeline {
                         }
                         withCredentials([usernamePassword(credentialsId: params.CREDENTIALS_ID_DB, usernameVariable: 'DB_USER', passwordVariable: 'DB_PASSWORD')]) {
                             runRestore(DB_USER, DB_PASSWORD, ibcmdUser, ibcmdPassword)
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Run post-restore SQL') {
+            when {
+                expression {
+                    def hasSqlFile = params.POST_RESTORE_SQL_FILE?.trim()
+                    def hasSqlText = params.POST_RESTORE_SQL_TEXT?.trim()
+                    return params.POST_RESTORE_TOOL != 'skip' && (hasSqlFile || hasSqlText)
+                }
+            }
+            steps {
+                script {
+                    def postSqlFile = params.POST_RESTORE_SQL_FILE?.trim()
+                    def postSqlText = params.POST_RESTORE_SQL_TEXT?.trim()
+
+                    if (postSqlFile && postSqlText) {
+                        error 'Specify only one of POST_RESTORE_SQL_FILE or POST_RESTORE_SQL_TEXT'
+                    }
+
+                    if (postSqlText) {
+                        postSqlFile = 'post_restore_script.sql'
+                        writeFile(file: postSqlFile, text: postSqlText + "\r\n")
+                    }
+
+                    if (!postSqlFile?.trim()) {
+                        echo 'No post-restore SQL specified. Skipping.'
+                        return
+                    }
+
+                    if (!fileExists(postSqlFile)) {
+                        error "Post-restore SQL file not found: ${postSqlFile}"
+                    }
+
+                    def requestedPostTool = params.POST_RESTORE_TOOL?.trim()?.toLowerCase()
+                    def effectivePostTool = requestedPostTool == 'auto' ? (params.DBMS == 'MSSQLServer' ? 'sqlcmd' : 'psql') : requestedPostTool
+
+                    if (!(effectivePostTool in ['sqlcmd', 'psql'])) {
+                        error "Unsupported effective post-restore tool '${effectivePostTool}'"
+                    }
+
+                    def runPostRestoreScript = { String dbUser = '' ->
+                        def command
+                        if (effectivePostTool == 'sqlcmd') {
+                            command = "sqlcmd -S ${utils.escapeArg(params.DB_HOST.trim())} " +
+                                "-d ${utils.escapeArg(params.DB_TARGET.trim())} " +
+                                "-E -b -i ${utils.escapeArg(postSqlFile)} " +
+                                "-o ${utils.escapeArg('sqlcmd_post_restore_log.txt')}"
+                        } else {
+                            command = "psql -h ${utils.escapeArg(params.DB_HOST.trim())} " +
+                                "-d ${utils.escapeArg(params.DB_TARGET.trim())} " +
+                                "-U ${utils.escapeArg(dbUser)} " +
+                                "-w -v ON_ERROR_STOP=1 -X " +
+                                "-L ${utils.escapeArg('psql_post_restore_log.txt')} " +
+                                "-f ${utils.escapeArg(postSqlFile)}"
+                        }
+
+                        int returnCode = utils.cmd(command)
+                        if (returnCode != 0) {
+                            error "Post-restore SQL execution failed. Check sqlcmd_post_restore_log.txt or psql_post_restore_log.txt in workspace."
+                        }
+                    }
+
+                    if (effectivePostTool == 'sqlcmd') {
+                        runPostRestoreScript('')
+                        return
+                    }
+
+                    if (!params.CREDENTIALS_ID_DB?.trim()) {
+                        error 'CREDENTIALS_ID_DB is required for post-restore psql script execution'
+                    }
+                    withCredentials([usernamePassword(credentialsId: params.CREDENTIALS_ID_DB, usernameVariable: 'DB_USER', passwordVariable: 'DB_PASSWORD')]) {
+                        withEnv(["PGPASSWORD=${DB_PASSWORD}"]) {
+                            runPostRestoreScript(DB_USER)
                         }
                     }
                 }
