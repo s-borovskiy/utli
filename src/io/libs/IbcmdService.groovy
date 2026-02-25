@@ -34,7 +34,6 @@ class IbcmdService implements Serializable {
             dbUtils.commandOption("user", ibcmdUser) +
             dbUtils.commandOption("password", ibcmdPassword) +
             "--db-name=${ctx.escapeArg(database)} " +
-            "--data=${ctx.escapeArg(options.backupPath)} " +
             "${ctx.escapeArg(backupTarget)} " +
             "> ${ctx.escapeArg(dbUtils.logPath('ibcmd_log.txt'))} 2>&1"
 
@@ -64,7 +63,6 @@ class IbcmdService implements Serializable {
             dbUtils.commandOption("user", ibcmdUser) +
             dbUtils.commandOption("password", ibcmdPassword) +
             "--db-name=${ctx.escapeArg(database)} " +
-            "--data=${ctx.escapeArg(dataDir)} " +
             "${ctx.escapeArg(backupTarget)} " +
             "> ${ctx.escapeArg(dbUtils.logPath('ibcmd_log.txt'))} 2>&1"
 
