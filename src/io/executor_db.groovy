@@ -210,6 +210,7 @@ pipeline {
                             "${utils.escapeArg(params.DB_HOST.trim())} " +
                             "${utils.escapeArg(DB_ADMIN_USER)} " +
                             "${utils.escapeArg(DB_ADMIN_PASSWORD)} " +
+                            "${utils.escapeArg(params.DBMS)} " +
                             "${utils.escapeArg(descriptionBase)} " +
                             "> ${utils.escapeArg(createInfobaseLogPath)} 2>&1"
                         int returnCode = utils.cmd(command)
