@@ -6,24 +6,24 @@ def utils = new V8Utils(this)
 
 pipeline {
     parameters {
-        booleanParam(name: 'ECHO_OFF', defaultValue: true, description: 'Disable command echo in Windows bat')
-        string(name: 'CREDENTIALS_ID_DB', defaultValue: (params?.CREDENTIALS_ID_DB ?: (env.CREDENTIALS_ID_DB ?: 'CREDENTIALS_ID_DB')), description: 'Credentials ID for DB auth')
-        string(name: 'CREDENTIALS_ID_IBCMD', defaultValue: (params?.CREDENTIALS_ID_IBCMD ?: (env.CREDENTIALS_ID_IBCMD ?: (params?.CREDENTIALS_ID_DB ?: (env.CREDENTIALS_ID_DB ?: 'CREDENTIALS_ID_DB')))), description: 'Credentials ID for ibcmd --user/--password')
+        booleanParam(name: 'ECHO_OFF', defaultValue: true, description: 'Отключить вывод выполняемых команд в Windows bat')
+        string(name: 'CREDENTIALS_ID_DB', defaultValue: (params?.CREDENTIALS_ID_DB ?: (env.CREDENTIALS_ID_DB ?: 'CREDENTIALS_ID_DB')), description: 'ID учетных данных для подключения к СУБД')
+        string(name: 'CREDENTIALS_ID_IBCMD', defaultValue: (params?.CREDENTIALS_ID_IBCMD ?: (env.CREDENTIALS_ID_IBCMD ?: (params?.CREDENTIALS_ID_DB ?: (env.CREDENTIALS_ID_DB ?: 'CREDENTIALS_ID_DB')))), description: 'ID учетных данных для параметров ibcmd --user/--password')
 
-        choice(name: 'DBMS', choices: ['MSSQLServer', 'PostgreSQL'], description: 'Database engine')
-        choice(name: 'DB_TOOL', choices: ['auto', 'sqlcmd', 'psql', 'ibcmd'], description: 'DB client tool (auto maps DBMS -> sqlcmd/psql)')
-        string(name: 'IBCMD_PATH', defaultValue: (params?.IBCMD_PATH ?: (env.IBCMD_PATH ?: 'ibcmd')), description: 'Path to ibcmd executable')
-        string(name: 'DB_HOST', defaultValue: (params?.DB_HOST ?: (env.DB_HOST ?: (env.server1c ?: 'localhost'))), description: 'DB host')
-        string(name: 'RAS_HOST', defaultValue: (params?.RAS_HOST ?: (env.RAS_HOST ?: (env.server1c ?: 'localhost'))), description: 'RAS host for create_infobase_if_absent script')
-        string(name: 'RAS_PORT', defaultValue: (params?.RAS_PORT ?: (env.RAS_PORT ?: '1545')), description: 'RAS port for create_infobase_if_absent script')
-        string(name: 'DB_NAME', defaultValue: (params?.DB_NAME ?: (env.DB_NAME ?: (env.database ?: 'Prosloyka'))), description: 'Source DB name for backup')
-        string(name: 'DB_TARGET', defaultValue: (params?.DB_TARGET ?: (env.DB_TARGET ?: 'Prosloyka_copy')), description: 'Target DB name for restore')
+        choice(name: 'DBMS', choices: ['MSSQLServer', 'PostgreSQL'], description: 'Тип СУБД')
+        choice(name: 'DB_TOOL', choices: ['auto', 'sqlcmd', 'psql', 'ibcmd'], description: 'Инструмент для работы с БД (auto: MSSQLServer -> sqlcmd, PostgreSQL -> psql)')
+        string(name: 'IBCMD_PATH', defaultValue: (params?.IBCMD_PATH ?: (env.IBCMD_PATH ?: 'ibcmd')), description: 'Путь к исполняемому файлу ibcmd')
+        string(name: 'DB_HOST', defaultValue: (params?.DB_HOST ?: (env.DB_HOST ?: (env.server1c ?: 'localhost'))), description: 'Адрес сервера СУБД')
+        string(name: 'RAS_HOST', defaultValue: (params?.RAS_HOST ?: (env.RAS_HOST ?: (env.server1c ?: 'localhost'))), description: 'Адрес RAS-сервера для скрипта create_infobase_if_absent')
+        string(name: 'RAS_PORT', defaultValue: (params?.RAS_PORT ?: (env.RAS_PORT ?: '1545')), description: 'Порт RAS-сервера для скрипта create_infobase_if_absent')
+        string(name: 'DB_NAME', defaultValue: (params?.DB_NAME ?: (env.DB_NAME ?: (env.database ?: 'Prosloyka'))), description: 'Имя исходной базы для создания резервной копии')
+        string(name: 'DB_TARGET', defaultValue: (params?.DB_TARGET ?: (env.DB_TARGET ?: 'Prosloyka_copy')), description: 'Имя целевой базы для восстановления')
 
-        string(name: 'BACKUP_DIR', defaultValue: (params?.BACKUP_DIR ?: (env.BACKUP_DIR ?: 'C:\\temp\\db_backups')), description: 'Folder where backup file will be stored')
-        string(name: 'BACKUP_NAME', defaultValue: (params?.BACKUP_NAME ?: (env.BACKUP_NAME ?: 'db_backup')), description: 'Backup file prefix (without extension)')
-        choice(name: 'POST_RESTORE_TOOL', choices: ['skip', 'auto', 'sqlcmd', 'psql'], description: 'Tool for optional post-restore SQL execution')
-        string(name: 'POST_RESTORE_SQL_FILE', defaultValue: (params?.POST_RESTORE_SQL_FILE ?: (env.POST_RESTORE_SQL_FILE ?: '')), description: 'Optional path to SQL file executed after restore')
-        text(name: 'POST_RESTORE_SQL_TEXT', defaultValue: (params?.POST_RESTORE_SQL_TEXT ?: (env.POST_RESTORE_SQL_TEXT ?: '')), description: 'Optional inline SQL executed after restore')
+        string(name: 'BACKUP_DIR', defaultValue: (params?.BACKUP_DIR ?: (env.BACKUP_DIR ?: 'C:\\temp\\db_backups')), description: 'Папка для сохранения файла резервной копии')
+        string(name: 'BACKUP_NAME', defaultValue: (params?.BACKUP_NAME ?: (env.BACKUP_NAME ?: 'db_backup')), description: 'Префикс имени файла резервной копии (без расширения)')
+        choice(name: 'POST_RESTORE_TOOL', choices: ['skip', 'auto', 'sqlcmd', 'psql'], description: 'Инструмент для опционального выполнения SQL после восстановления')
+        string(name: 'POST_RESTORE_SQL_FILE', defaultValue: (params?.POST_RESTORE_SQL_FILE ?: (env.POST_RESTORE_SQL_FILE ?: '')), description: 'Путь к SQL-файлу для выполнения после восстановления (необязательно)')
+        text(name: 'POST_RESTORE_SQL_TEXT', defaultValue: (params?.POST_RESTORE_SQL_TEXT ?: (env.POST_RESTORE_SQL_TEXT ?: '')), description: 'SQL-текст для выполнения после восстановления (необязательно)')
     }
 
     agent { label 'localhost' }
@@ -102,14 +102,23 @@ pipeline {
                     if (!workspacePath) {
                         error 'WORKSPACE is not defined'
                     }
-                    def executorCmdPath = "${workspacePath}\\executor\\executor.cmd"
-                    def createInfobaseScriptPath = "${workspacePath}\\executor\\create_infobase_if_absent.sbsl"
-                    if (!fileExists(executorCmdPath)) {
-                        error "Required file not found: ${executorCmdPath}"
+                    def executorDirCandidates = [
+                        "${workspacePath}\\src\\io\\executor",
+                        "${workspacePath}\\executor"
+                    ]
+                    def resolvedExecutorDir = ''
+                    for (String candidate in executorDirCandidates) {
+                        def candidateCmd = "${candidate}\\executor.cmd"
+                        def candidateScript = "${candidate}\\create_infobase_if_absent.sbsl"
+                        if (fileExists(candidateCmd) && fileExists(candidateScript)) {
+                            resolvedExecutorDir = candidate
+                            break
+                        }
                     }
-                    if (!fileExists(createInfobaseScriptPath)) {
-                        error "Required file not found: ${createInfobaseScriptPath}"
+                    if (!resolvedExecutorDir) {
+                        error "Executor files not found. Checked: ${executorDirCandidates.join(', ')}"
                     }
+                    env.EXECUTOR_DIR = resolvedExecutorDir
 
                     writeFile(file: 'backup_path.txt', text: env.BACKUP_FILE_PATH + "\r\n")
                     echo "Backup path: ${env.BACKUP_FILE_PATH}"
@@ -179,8 +188,9 @@ pipeline {
             steps {
                 script {
                     def workspacePath = env.WORKSPACE?.trim()
-                    def executorCmdPath = "${workspacePath}\\executor\\executor.cmd"
-                    def createInfobaseScriptPath = "${workspacePath}\\executor\\create_infobase_if_absent.sbsl"
+                    def executorDir = env.EXECUTOR_DIR?.trim() ? env.EXECUTOR_DIR.trim() : "${workspacePath}\\src\\io\\executor"
+                    def executorCmdPath = "${executorDir}\\executor.cmd"
+                    def createInfobaseScriptPath = "${executorDir}\\create_infobase_if_absent.sbsl"
                     def createInfobaseLogPath = "${workspacePath}\\create_infobase_if_absent_log.txt"
 
                     def command = "${utils.escapeArg(executorCmdPath)} -l ru " +
