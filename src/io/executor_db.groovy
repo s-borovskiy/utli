@@ -124,11 +124,13 @@ pipeline {
                     }
 
                     withCredentials([usernamePassword(credentialsId: params.CREDENTIALS_ID_IBCMD, usernameVariable: 'IBCMD_USER', passwordVariable: 'IBCMD_PASSWORD')]) {
+                        def ibcmdUser = IBCMD_USER
+                        def ibcmdPassword = IBCMD_PASSWORD
                         if (!params.CREDENTIALS_ID_DB?.trim()) {
                             error 'CREDENTIALS_ID_DB is required for ibcmd --db-user/--db-pwd'
                         }
                         withCredentials([usernamePassword(credentialsId: params.CREDENTIALS_ID_DB, usernameVariable: 'DB_USER', passwordVariable: 'DB_PASSWORD')]) {
-                            runBackup(DB_USER, DB_PASSWORD, IBCMD_USER, IBCMD_PASSWORD)
+                            runBackup(DB_USER, DB_PASSWORD, ibcmdUser, ibcmdPassword)
                         }
                     }
                 }
@@ -180,11 +182,13 @@ pipeline {
                     }
 
                     withCredentials([usernamePassword(credentialsId: params.CREDENTIALS_ID_IBCMD, usernameVariable: 'IBCMD_USER', passwordVariable: 'IBCMD_PASSWORD')]) {
+                        def ibcmdUser = IBCMD_USER
+                        def ibcmdPassword = IBCMD_PASSWORD
                         if (!params.CREDENTIALS_ID_DB?.trim()) {
                             error 'CREDENTIALS_ID_DB is required for ibcmd --db-user/--db-pwd'
                         }
                         withCredentials([usernamePassword(credentialsId: params.CREDENTIALS_ID_DB, usernameVariable: 'DB_USER', passwordVariable: 'DB_PASSWORD')]) {
-                            runRestore(DB_USER, DB_PASSWORD, IBCMD_USER, IBCMD_PASSWORD)
+                            runRestore(DB_USER, DB_PASSWORD, ibcmdUser, ibcmdPassword)
                         }
                     }
                 }
