@@ -7,12 +7,12 @@ def utils = new V8Utils(this)
 pipeline {
         parameters {
             booleanParam(name: 'ECHO_OFF', defaultValue: true, description: 'Disable command echo in Windows bat')
-            string(name: 'CREDENTIALS_ID_BASE', defaultValue: 'CREDENTIALS_ID_BASE', description: 'Credentials ID for base steps')
-            string(name: 'CREDENTIALS_ID_GIT', defaultValue: 'CREDENTIALS_ID_GIT', description: 'Credentials ID for git steps')
-            string(name: 'CREDENTIALS_ID_HRAN', defaultValue: 'CREDENTIALS_ID_HRAN', description: 'Credentials ID for hran steps')
-            string(name: 'rep_git_local', defaultValue: '', description: 'Адрес моего локального гит-репозитория')
-            string(name: 'rep_git_remote', defaultValue: '', description: 'Адрес моего Удаленного гит-репозитория')
-            string(name: 'rep_1c', defaultValue: '', description: 'Адрес моего Удаленного гит-репозитория')
+            string(name: 'CREDENTIALS_ID_BASE', defaultValue: (params?.CREDENTIALS_ID_BASE ?: ''), description: 'Credentials ID for base steps')
+            string(name: 'CREDENTIALS_ID_GIT', defaultValue: (params?.CREDENTIALS_ID_GIT ?: ''), description: 'Credentials ID for git steps')
+            string(name: 'CREDENTIALS_ID_HRAN', defaultValue: (params?.CREDENTIALS_ID_HRAN ?: ''), description: 'Credentials ID for hran steps')
+            string(name: 'rep_git_local', defaultValue: (params?.rep_git_local ?: ''), description: 'Адрес моего локального гит-репозитория')
+            string(name: 'rep_git_remote', defaultValue: (params?.rep_git_remote ?: ''), description: 'Адрес моего Удаленного гит-репозитория')
+            string(name: 'rep_1c', defaultValue: (params?.rep_1c ?: ''), description: 'Адрес моего Удаленного гит-репозитория')
         }
 
     agent { label 'localhost' }
@@ -27,7 +27,7 @@ pipeline {
                 passwordVariable: 'password')]) {
                         returnCode = utils.shell.runOrError("cd /D \"${rep_git_local}\" & git pull https://${utils.urlEncode(username)}:${utils.urlEncode(password)}@$rep_git_remote storage_1c", 'Ошибка')
                 }
-                    withCredentials([usernamePassword(credentialsId: 'CREDENTIALS_ID_HRAN',
+                    withCredentials([usernamePassword(credentialsId: CREDENTIALS_ID_HRAN,
                 usernameVariable: 'login_hran',
                 passwordVariable: 'pass_hran')]) {
                         returnCode = utils.hran.init(rep_1c, rep_git_local + "\\src\\cf", '', '', login_hran, pass_hran)
