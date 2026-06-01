@@ -42,7 +42,7 @@ pipeline {
         stage('sync repo') {
             steps {
                 script {
-                    withCredentials([usernamePassword(credentialsId: 'CREDENTIALS_ID_HRAN',
+                    withCredentials([usernamePassword(credentialsId: CREDENTIALS_ID_HRAN,
                         usernameVariable: 'login_hran',
                         passwordVariable: 'pass_hran')]) {
                         returnCode = utils.hran.sync(rep_1c, rep_git_local + "\\src\\cf",
