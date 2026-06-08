@@ -24,7 +24,7 @@ def utils = new V8Utils(this)
             string(name: 'token_sonar', defaultValue: (params?.token_sonar ?: (env.token_sonar ?: '')), description: 'УРЛ проекта sonar')
         }
         
-        agent { label 'localhost' }
+        agent { label 'localhost1' }
         stages {
 
             stage('Очищаем папку старых тестов'){
